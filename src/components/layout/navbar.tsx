@@ -193,14 +193,33 @@ export default function Navbar({ loading }: NavbarProps) {
     <>
       <motion.nav
         ref={pillRef}
-        className="fixed md:absolute z-[100] flex flex-col top-[30px] md:top-[50px] left-1/2 -translate-x-1/2 w-[calc(100%-40px)] md:w-[calc(100%-122px)] max-w-[1318px]
-          bg-off-white/70 backdrop-blur-md px-6 py-4 rounded-[24px] shadow-[0_8px_32px_rgba(26,26,26,0.1)] border border-off-black/5 md:bg-transparent md:px-0 md:py-0 md:rounded-none md:shadow-none md:border-transparent md:backdrop-blur-none"
+        /* While the menu is open the mobile pill drops its chrome so the top bar
+           reads as the reference's bare logo + close button against the dark
+           overlay. Desktop is untouched — every md: variant below already
+           removes the same chrome unconditionally.
+
+           The z-index must ALSO lift to 110 while open. This nav establishes a
+           stacking context at z-100, and a child cannot escape its parent's
+           stacking context — so the toggle's own z-[110] is resolved *within*
+           this nav and still lands under the menu overlay's z-[105]. That went
+           unnoticed while the pill had an opaque background painting over the
+           overlay; once the chrome above is removed, the overlay covers the
+           close button entirely. */
+        className={`fixed md:absolute ${isMenuOpen ? 'z-[110]' : 'z-[100]'} flex flex-col top-[30px] md:top-[50px] left-1/2 -translate-x-1/2 w-[calc(100%-40px)] md:w-[calc(100%-122px)] max-w-[1318px]
+          bg-off-white/70 backdrop-blur-md px-6 py-4 rounded-[24px] shadow-[0_8px_32px_rgba(26,26,26,0.1)] border border-off-black/5 md:bg-transparent md:px-0 md:py-0 md:rounded-none md:shadow-none md:border-transparent md:backdrop-blur-none ${
+          isMenuOpen
+            ? 'max-md:bg-transparent max-md:backdrop-blur-none max-md:border-transparent max-md:shadow-none'
+            : ''
+        }`}
         initial={{ y: -100, opacity: 0 }}
         animate={!loading ? { y: 0, opacity: 1 } : {}}
         transition={{ duration: PILL_INTRO_DURATION, delay: PILL_INTRO_DELAY, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className="flex items-center w-full justify-between transition-all duration-500">
-          <MagneticLink href="#hero">
+          {/* Hidden below md while the menu is open: this mark is dark and would
+              disappear against the overlay. The menu renders its own light mark
+              at the same size and gutter, so the slot stays filled. */}
+          <MagneticLink href="#hero" className={isMenuOpen ? 'max-md:opacity-0 max-md:pointer-events-none' : ''}>
           <Image
             src="/images/a2-logo.png"
             alt="ATWO Studios Logo"
@@ -231,8 +250,17 @@ export default function Navbar({ loading }: NavbarProps) {
           <div className="md:hidden flex items-center shrink-0">
             <button
               onClick={toggleMenu}
-              /* Sits above the overlay so it can close it again. */
-              className={`relative z-[110] p-1 focus:outline-none transition-colors ${isMenuOpen ? 'text-off-white' : 'text-off-black'}`}
+              /* Sits above the overlay so it can close it again. Closed, it is a
+                 bare dark glyph in the light pill; open, it becomes the
+                 reference's filled circular close button — the pill's chrome is
+                 transparent by then, so the circle carries its own background.
+                 Mirrors the desktop floating toggle's conditional treatment
+                 below, using the existing accent-red token. */
+              className={`relative z-[110] focus:outline-none transition-colors ${
+                isMenuOpen
+                  ? 'flex h-[48px] w-[48px] items-center justify-center rounded-full bg-accent-red text-off-white'
+                  : 'p-1 text-off-black'
+              }`}
               aria-label="Toggle menu"
               aria-expanded={isMenuOpen}
             >

@@ -98,6 +98,13 @@ const CHAR_WIDTH_RATIO = 0.5;
  *  and is free to be as large as that gap allows. */
 const CARD_CLEARANCE_PX = 16;
 
+/** Slack, in px, on each end of the "section fills the viewport" test. The rect
+ *  is read mid-interpolation while Lenis eases, so its edges land on fractional
+ *  pixels and a strict `top <= 0 && bottom >= innerHeight` flickers at the
+ *  boundary. Small enough that the deck cannot arm before the plateau is
+ *  visually reached, large enough to absorb sub-pixel noise and browser zoom. */
+const PIN_TOLERANCE_PX = 2;
+
 /** The tutorial's own easing, registered once at module scope. */
 const EASE = CustomEase.create("cardEase", "0.86, 0, 0.07, 1");
 
@@ -198,6 +205,45 @@ function geometry(viewportW: number, viewportH: number) {
   return { cardW, cardH: cardW * RATIO, zStep: cardW * Z_STEP_RATIO };
 }
 
+/** Touch-only vertical list card: plays its own video while scrolled into
+ *  view and pauses otherwise, instead of the desktop deck's single
+ *  front-card driver (which touch never reaches — see the isTouch branch). */
+function MobileVideoCard({ slide }: { slide: Slide }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          void el.play().catch(() => {});
+        } else {
+          el.pause();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(el);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <video
+      ref={videoRef}
+      src={slide.video}
+      poster={slide.poster}
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      className="h-full w-full object-cover"
+    />
+  );
+}
+
 export default function VideoStack() {
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -240,6 +286,13 @@ export default function VideoStack() {
    *  Refs, not state — read synchronously from pointer/scroll handlers, and they
    *  must not cause renders. */
   const hoveringDeck = useRef(false);
+  /** True only while the sticky box exactly fills the viewport: the section's
+   *  top has reached 0 and its bottom has not yet risen above the viewport
+   *  bottom. Hover alone is not enough — the sticky child is already pinned and
+   *  painted while the section is only PARTLY in view, so a cursor resting where
+   *  a card sweeps past would otherwise hijack scroll mid-approach, in both
+   *  directions. The deck may only own scroll on the full-screen plateau. */
+  const sectionPinned = useRef(false);
   /** Whether this section currently owns scroll input (Lenis stopped). */
   const locked = useRef(false);
   /** Assigned inside the GSAP effect; called from pointer handlers on the
@@ -654,7 +707,7 @@ export default function VideoStack() {
       // unnecessary here: the page never moved while locked, so Lenis's
       // internalStart() -> reset() simply resyncs it to where it already is.
       const syncLock = () => {
-        const want = hoveringDeck.current;
+        const want = hoveringDeck.current && sectionPinned.current;
         if (want === locked.current) return;
         // Bail AFTER the no-change check but BEFORE mutating `locked`, so a
         // call with no instance yet leaves state untouched and a later call
@@ -674,6 +727,42 @@ export default function VideoStack() {
         }
       };
       syncLockRef.current = syncLock;
+
+      /** Recompute the full-viewport plateau from the section's own rect.
+       *
+       *  Driven by GSAP's ticker rather than Lenis's 'scroll' event, which was
+       *  the obvious choice and is wrong: navbar.tsx:91 scrolls to anchors with
+       *  `lenis.scrollTo(target, { force: true })`, and `force` exists precisely
+       *  to move the page WHILE LENIS IS STOPPED. A stopped Lenis emits no
+       *  'scroll', so a menu jump fired while the deck holds the lock would move
+       *  the section out from under a stale `true` flag and leave the deck
+       *  eating wheel events off-plateau — the exact bug this gate removes.
+       *  The ticker runs unconditionally (smooth-scroll.tsx owns it as the app's
+       *  single RAF loop), so the flag tracks reality in both states.
+       *
+       *  getBoundingClientRect() on one element per frame is a read of already-
+       *  computed layout, and nothing here writes style before it, so this does
+       *  not trigger layout thrash. */
+      const syncPinned = () => {
+        const el = sectionRef.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        // Inclusive at both ends, with tolerance, so the plateau is a reachable
+        // band rather than an infinitely thin instant that smooth-scroll
+        // interpolation can step straight over between frames.
+        const want =
+          r.top <= PIN_TOLERANCE_PX &&
+          r.bottom >= window.innerHeight - PIN_TOLERANCE_PX;
+        if (want === sectionPinned.current) return;
+        sectionPinned.current = want;
+        // Losing the plateau mid-lock must release: syncLock's own no-change
+        // guard makes this a no-op whenever the lock state already agrees.
+        syncLock();
+      };
+      // Seed before the first tick so a reload deep-linked into #videos, or a
+      // remount with the cursor already over a card, starts out correct.
+      syncPinned();
+      gsap.ticker.add(syncPinned);
 
       void document.fonts.ready.then(() => {
         if (cancelled || !sectionRef.current) return;
@@ -709,9 +798,14 @@ export default function VideoStack() {
         // the double-invoke pass that captured `undefined` still releases the
         // real instance.
         unsubscribeGesture?.();
+        // The ticker is app-global and outlives this component, so a callback
+        // left on it would keep reading a detached section's rect every frame
+        // and accumulate one leak per hot-reload.
+        gsap.ticker.remove(syncPinned);
         resetGate();
         syncLockRef.current = null;
         hoveringDeck.current = false;
+        sectionPinned.current = false;
         locked.current = false;
         lenisRef.current?.start();
         splitsRef.current.forEach((s) => s?.revert());
@@ -736,8 +830,11 @@ export default function VideoStack() {
     ScrollTrigger.refresh();
   }, [size.cardW, size.cardH, reduced, isTouch, initializeCards]);
 
-  // Touch shares the reduced-motion layout: the clips simply stack vertically,
-  // one after another, and the page scrolls past them normally.
+  // Reduced motion (any device) and touch (any motion preference) both skip
+  // the scroll-jacked deck for a plain vertical list. Reduced motion gets
+  // static posters, matching the user's OS preference; touch alone still
+  // gets real playing video, gated per-card by MobileVideoCard's own
+  // IntersectionObserver instead of the desktop deck's hover-driven gating.
   if (reduced || isTouch) {
     return (
       <section id="videos" className="relative w-full bg-black py-24">
@@ -763,13 +860,17 @@ export default function VideoStack() {
                   aria-label={`${slide.name} on Instagram`}
                   className="relative block aspect-video w-full overflow-hidden rounded-none shadow-2xl"
                 >
-                  <Image
-                    src={slide.poster}
-                    alt={slide.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 60vw"
-                    className="object-cover"
-                  />
+                  {reduced ? (
+                    <Image
+                      src={slide.poster}
+                      alt={slide.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 60vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <MobileVideoCard slide={slide} />
+                  )}
                 </a>
                 <figcaption className="mt-4">
                   <h3 className="font-coolvetica text-[clamp(20px,2vw,28px)] tracking-tight text-white">
