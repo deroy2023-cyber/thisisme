@@ -1,16 +1,9 @@
 "use client";
 
 import { motion } from 'motion/react';
-import Image from 'next/image';
 import SectionHeader from '@/src/components/ui/section-header';
-import GlassmorphicPill from '@/src/components/ui/glassmorphic-pill';
-
-interface Project {
-  title: string;
-  image: string;
-  tags: string[];
-  link: string;
-}
+import TextBlockAnimation from '@/src/components/ui/text-block-animation';
+import WorkCard, { gridVariants, type Project } from '@/src/components/ui/work-card';
 
 const PROJECTS: Project[] = [
   {
@@ -47,82 +40,39 @@ export default function Portfolio() {
 
         {/* Heading area */}
         <div className="relative mt-8 lg:mt-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 lg:gap-0 mb-10 lg:mb-16">
-          <motion.h2
+          <h2
             className="text-[12vw] lg:text-[216.4px] leading-[0.839] text-black select-none"
             style={{
               fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif',
               letterSpacing: '-0.01em'
             }}
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
             OUR<br />WORK
-          </motion.h2>
+          </h2>
 
-          <motion.p
-            className="font-normal text-[20px] text-black leading-normal max-w-[282px] text-left"
-            style={{ fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif', letterSpacing: '-0.03em' }}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          >
-            Looks like a production circus happened here. Plot twist : It didn&apos;t.
-          </motion.p>
-        </div>
-
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-          {PROJECTS.map((project, i) => (
-            <motion.div
-              key={i}
-              className="relative w-full aspect-[634/511] overflow-hidden group"
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-80px' }}
-              transition={{ duration: 0.7, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+          <TextBlockAnimation className="max-w-[282px]" stagger={0.05}>
+            <p
+              className="font-normal text-[20px] text-black leading-normal text-left"
+              style={{ fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif', letterSpacing: '-0.03em' }}
             >
-              <a href={project.link} target='blank'>
-              <Image
-                src={project.image}
-                alt={project.title}
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-
-              {/* Overlay content */}
-              <div className="absolute inset-0 flex flex-col justify-between p-5 lg:p-[30px]">
-                {/* Top row */}
-                <div className="flex items-start justify-between">
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif',
-                      fontWeight: 300,
-                      fontSize: '21.36px',
-                      lineHeight: '38.4px',
-                      letterSpacing: '-0.51px',
-                      color: 'white',
-                    }}
-                  >
-                    {project.title}
-                  </span>
-                  <span className="font-coolvetica text-white text-base">✦</span>
-                </div>
-
-                {/* Bottom tags */}
-                <div className="flex gap-2 flex-wrap">
-                  {project.tags.map((tag) => (
-                    <GlassmorphicPill key={tag} label={tag} />
-                  ))}
-                </div>
-              </div>
-              </a>
-            </motion.div>
-          ))}
+              Looks like a production circus happened here. Plot twist : It didn&apos;t.
+            </p>
+          </TextBlockAnimation>
         </div>
+
+        {/* Grid — parent owns the stagger; each WorkCard reveals itself.
+            once:true so cards don't replay on every scroll-back. */}
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6"
+          variants={gridVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+        >
+          {PROJECTS.map((project, i) => (
+            <WorkCard key={i} {...project} />
+          ))}
+        </motion.div>
       </div>
     </section>
   );

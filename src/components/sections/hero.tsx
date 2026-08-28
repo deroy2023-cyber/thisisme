@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from 'react';
 import { motion, useSpring, useTransform, MotionValue } from 'motion/react';
 import Image from 'next/image';
 import { TextRoll } from '@/src/components/ui/text-roll';
+import { useHoverState } from '@/src/components/ui/use-hover-state';
 import FloatingParticles from '@/src/components/layout/floating-particles';
 
 const HERO_TEXT = "ATWO STUDIOS.";
@@ -12,39 +12,33 @@ const HERO_START = 0.5;
 const TAGLINE_START = 0.8;
 
 function MagneticButton({ children }: { children: string }) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [key, setKey] = useState(0);
+  const { isHovered, hoverProps } = useHoverState<HTMLButtonElement>();
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const target = document.querySelector("#work");
     if (target) {
       e.preventDefault();
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-      const observer = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting) {
-          observer.disconnect();
-        }
-      }, { threshold: 0.47 });
-
-      observer.observe(target);
     }
   };
 
   return (
     <button
-      className="bg-off-black text-off-white px-[38px] py-[14px] rounded-[30px] text-[24px] tracking-wider transition-all duration-500 hover:bg-[#D60000] hover:mix-blend-color-burn pointer-events-auto overflow-hidden md:min-w-[240px] font-coolvetica-condensed"
-      onMouseEnter={() => { setIsHovered(true); setKey(k => k + 1); }}
-      onMouseLeave={() => setIsHovered(false)}
+      className="bg-off-black text-off-white px-[38px] py-[14px] rounded-[30px] text-[24px] tracking-wider transition-all duration-200 hover:bg-[#D60000] hover:mix-blend-color-burn pointer-events-auto overflow-hidden md:min-w-[240px] font-coolvetica-condensed"
+      {...hoverProps}
       onClick={handleClick}
     >
-      {isHovered ? (
-        <TextRoll key={key} duration={0.25} transition={{ ease: [0.32, 0.72, 0, 1] }} exitClassName="text-off-white">
-          {children}
-        </TextRoll>
-      ) : (
-        <span>{children}</span>
-      )}
+      {/* Mounted always, driven by isHovered — see the note in navbar.tsx and the
+          isHovered doc in text-roll.tsx. The stranding bug is invisible here
+          (exitClassName is off-white against off-white text) but the mechanism is
+          identical, and the two consumers are kept consistent. */}
+      <TextRoll
+        isHovered={isHovered}
+        transition={{ ease: [0.32, 0.72, 0, 1] }}
+        exitClassName="text-off-white"
+      >
+        {children}
+      </TextRoll>
     </button>
   );
 }
@@ -85,6 +79,14 @@ function StaticWordReveal({ text, className }: { text: string; className?: strin
 const MotionImage = motion.create(Image);
 
 interface HeroProps {
+  /** Gates this section's whole entrance -- photograph, H1 letters, taglines,
+   *  strike, CTA and the particles.
+   *
+   *  Deliberately ONE flag. A previous revision split it so the photograph could
+   *  be up before a knockout reveal opened onto it; that reveal is gone. The
+   *  preloader now expands its bar until it IS the viewport in #F5F5F0 and then
+   *  stands down, so this entrance is the reveal and every part of it should
+   *  arrive together. */
   loading: boolean;
   smoothProgress: MotionValue<number>;
   mouseX: MotionValue<number>;
@@ -102,15 +104,21 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
   const bgX = useSpring(rawBgX, { stiffness: 50, damping: 30 });
   const bgY = useSpring(rawBgY, { stiffness: 50, damping: 30 });
 
+  const bgScale = useTransform(smoothProgress, [0, 1], [1, 1.2]);
+
   const heroLetters = HERO_TEXT.split('');
 
   return (
-    <section id='hero' className="relative w-full h-screen overflow-hidden bg-light-gray">
+    /* bg-off-white, not bg-light-gray: this is the surface the preloader hands
+       over to. The bar expands to #F5F5F0 and then unmounts, so anything other
+       than the same colour here flashes for a frame before the photograph fades
+       up. It is only ever visible in that gap and before the image decodes. */
+    <section id='hero' className="relative w-full h-screen overflow-hidden bg-off-white">
       <div className="absolute inset-y-0 left-0 w-full h-full">
         {/* Background with parallax */}
         <motion.div
           className="absolute inset-[-30px]"
-          style={{ x: bgX, y: bgY, scale: useTransform(smoothProgress, [0, 1], [1, 1.2]) }}
+          style={{ x: bgX, y: bgY, scale: bgScale }}
         >
           <MotionImage
             src="https://res.cloudinary.com/ddooeqf5m/image/upload/v1772986604/final_hero_fiaghh.png"
@@ -130,14 +138,14 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
           />
         </motion.div>
 
-        <FloatingParticles />
+        <FloatingParticles loading={loading} />
 
         {/* Hero Title */}
         <motion.div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 mix-blend-difference pointer-events-none w-full text-center flex justify-center items-center"
-          style={{ scale: titleScale, opacity: titleOpacity, willChange: 'transform, opacity' }}
+          style={{ scale: titleScale, opacity: titleOpacity }}
         >
-          <h1 className="font-coolvetica-heavy text-[22vw] md:text-[280px] lg:text-[367px] leading-[0.8] text-off-white tracking-normal whitespace-nowrap select-none" style={{ willChange: "transform" }}>
+          <h1 className="font-coolvetica-heavy text-[22vw] md:text-[280px] lg:text-[367px] leading-[0.8] text-off-white tracking-normal whitespace-nowrap select-none">
             {heroLetters.map((letter, i) => (
               <span key={i} className="letter-mask">
                 <motion.span
@@ -198,8 +206,8 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
                   <span className="opacity-0 select-none"><StaticWordReveal text="DONT BLEND IN" /></span>
                   <motion.span
                     className="strike-line"
-                    initial={{ width: '0%' }}
-                    animate={!loading ? { width: '100%' } : {}}
+                    initial={{ scaleX: 0 }}
+                    animate={!loading ? { scaleX: 1 } : {}}
                     transition={{ duration: 0.6, delay: TAGLINE_START + 1.1, ease: [0.22, 1, 0.36, 1] }}
                   />
                 </span>

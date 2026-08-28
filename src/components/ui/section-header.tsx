@@ -6,12 +6,36 @@ interface SectionHeaderProps {
   label: string;
   number: string;
   dark?: boolean;
+  /** Explicit colour for the label, number, and rule. Overrides `dark`, which
+   *  only toggles white/black — pass this when a section needs a specific hue. */
+  color?: string;
+  /** Skip the opacity fade-in. A partial opacity composites the text against
+   *  whatever sits behind it, which washes a solid colour out to grey — pass
+   *  this where the colour must render exactly as given. */
+  solid?: boolean;
   className?: string;
 }
 
-export default function SectionHeader({ label, number, dark = false, className = '' }: SectionHeaderProps) {
-  const textColor = dark ? 'text-white' : 'text-black';
-  const lineColor = dark ? 'bg-white' : 'bg-black';
+export default function SectionHeader({ label, number, dark = false, color, solid = false, className = '' }: SectionHeaderProps) {
+  const textColor = color ? '' : dark ? 'text-white' : 'text-black';
+  const lineColor = color ? '' : dark ? 'bg-white' : 'bg-black';
+
+  const inner = (
+    <>
+      <div className="flex justify-between items-baseline pb-1">
+        <span className={`text-[18px] uppercase ${textColor}`} style={{ fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif', color }}>{label}</span>
+        <span className={`text-[18px] uppercase ${textColor}`} style={{ fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif', color }}>({number.replace(/[()]/g, '')})</span>
+      </div>
+      <div className={`w-full h-px ${lineColor}`} style={{ backgroundColor: color }} />
+    </>
+  );
+
+  // A plain div, not a motion.div with the animation props switched off: the
+  // fade-in is the ONLY thing motion was providing here, so with it gone there
+  // is nothing left to animate.
+  if (solid) {
+    return <div className={`w-full flex flex-col ${className}`}>{inner}</div>;
+  }
 
   return (
     <motion.div
@@ -21,11 +45,7 @@ export default function SectionHeader({ label, number, dark = false, className =
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.6 }}
     >
-      <div className="flex justify-between items-baseline pb-1">
-        <span className={`text-[18px] uppercase ${textColor}`} style={{ fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif' }}>{label}</span>
-        <span className={`text-[18px] uppercase ${textColor}`} style={{ fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif' }}>({number.replace(/[()]/g, '')})</span>
-      </div>
-      <div className={`w-full h-px ${lineColor}`} />
+      {inner}
     </motion.div>
   );
 }

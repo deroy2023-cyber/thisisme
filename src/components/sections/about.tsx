@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import SectionHeader from '@/src/components/ui/section-header';
+import TextBlockAnimation from '@/src/components/ui/text-block-animation';
 
 export default function About() {
   const [isMd, setIsMd] = useState(false);
@@ -39,30 +40,21 @@ export default function About() {
         </motion.div>
 
         <div className="relative px-5 md:px-10 lg:px-[75px] pt-[30px] lg:pt-[30px] lg:w-[55%] order-1 lg:order-none">
-          <motion.h2
-            className="text-[clamp(80px,12vw,160px)] leading-[0.839] text-white whitespace-nowrap relative"
-            style={{
-              fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif',
-              mixBlendMode: 'difference',
-            }}
-            initial={{ opacity: 0, x: -100 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ margin: '-100px' }}
-            transition={{ duration: 1, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          <h2
+            className="text-[clamp(80px,12vw,160px)] leading-[0.839] text-white whitespace-nowrap relative mix-blend-difference"
+            style={{ fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif' }}
           >
             INSIDE<br />ATWO STUDIOS
-          </motion.h2>
+          </h2>
 
-          <motion.p
-            className="font-medium text-[20px] text-black leading-[1.02] mt-[80px] max-w-[484px] text-left"
-            style={{ fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif', letterSpacing: '-0.01em' }}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ margin: '-100px' }}
-            transition={{ duration: 0.4, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          >
-            Ideas run the show. We create ads, films, and brand visuals that look like full productions – minus the rented studios, camera, crews and production chaos. We are less interested in how things are traditionally done and more obsessed with how far an idea can go. The results feel like a real shoot. The Process? Let&apos;s just say it&apos;s unconventional.
-          </motion.p>
+          <TextBlockAnimation className="mt-[80px] max-w-[484px]" stagger={0.03}>
+            <p
+              className="font-medium text-[20px] text-black leading-[1.02] text-left"
+              style={{ fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif', letterSpacing: '-0.01em' }}
+            >
+              Ideas run the show. We create ads, films, and brand visuals that look like full productions – minus the rented studios, camera, crews and production chaos. We are less interested in how things are traditionally done and more obsessed with how far an idea can go. The results feel like a real shoot. The Process? Let&apos;s just say it&apos;s unconventional.
+            </p>
+          </TextBlockAnimation>
         </div>
       </div>
     </section>

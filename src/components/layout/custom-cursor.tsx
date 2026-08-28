@@ -1,94 +1,75 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'motion/react';
+import { useState, useEffect } from 'react';
+import { motion, useMotionValue, useSpring } from 'motion/react';
 
 export default function CustomCursor() {
-  const [position, setPosition] = useState({
-    x: 0,
-    y: 0,
-  });
-  const [isClicking, setIsClicking] = useState(false);
+  const [hasFinePointer, setHasFinePointer] = useState(false);
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    setPosition({
-      x: e.clientX,
-      y: e.clientY,
-    });
-  }, []);
+  // Position lives in motion values, not React state. Previously this called
+  // setState on every mousemove — at pointer rate that floods the scheduler
+  // and was a primary cause of the page hanging.
+  const rawX = useMotionValue(-100);
+  const rawY = useMotionValue(-100);
+  const opacity = useMotionValue(0);
+  const scale = useMotionValue(1);
 
-  const handleMouseDown = () => setIsClicking(true);
-  const handleMouseUp = () => setIsClicking(false);
+  const x = useSpring(rawX, { damping: 28, stiffness: 520, mass: 0.4 });
+  const y = useSpring(rawY, { damping: 28, stiffness: 520, mass: 0.4 });
 
   useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
+    const pointerQuery = window.matchMedia('(pointer: fine)');
+    const updatePointer = () => setHasFinePointer(pointerQuery.matches);
+    updatePointer();
+    pointerQuery.addEventListener('change', updatePointer);
+    return () => pointerQuery.removeEventListener('change', updatePointer);
+  }, []);
+
+  useEffect(() => {
+    // No listeners at all on touch devices.
+    if (!hasFinePointer) return;
+
+    let frame = 0;
+    let cx = 0;
+    let cy = 0;
+
+    const flush = () => {
+      frame = 0;
+      rawX.set(cx - 16);
+      rawY.set(cy - 16);
+      opacity.set(1);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      cx = e.clientX;
+      cy = e.clientY;
+      if (!frame) frame = requestAnimationFrame(flush);
+    };
+
+    const handleMouseDown = () => scale.set(0.7);
+    const handleMouseUp = () => scale.set(1);
+    const handleMouseLeave = () => opacity.set(0);
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('mousedown', handleMouseDown, { passive: true });
+    window.addEventListener('mouseup', handleMouseUp, { passive: true });
+    document.documentElement.addEventListener('mouseleave', handleMouseLeave);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
+      document.documentElement.removeEventListener('mouseleave', handleMouseLeave);
+      if (frame) cancelAnimationFrame(frame);
     };
-  }, [handleMouseMove]);
+  }, [hasFinePointer, rawX, rawY, opacity, scale]);
 
-  // if (typeof window === "undefined") return null;
+  if (!hasFinePointer) return null;
 
   return (
-    <div 
-      className='pointer-events-none fixed inset-0 z-[9999]'
-    >
-      {/* Main cursor dot */}
-      <motion.div
-        className='absolute top-0 left-0 w-[10px] h-[10px] rounded-full bg-[#C24141]'
-        animate={{
-          x: position.x - 5,
-          y: position.y - 5,
-          scale: isClicking ? 0.8 : 1,
-        }}
-        transition={{
-          type: 'spring',
-          damping: 20,
-          stiffness: 400,
-          mass: 0.5,
-        }}
-      />
-
-      {/* Trailing circle */}
-      <motion.div
-        className='absolute top-0 left-0 w-[24px] h-[24px] rounded-full border-[1.5px] border-[#C24141]'
-        animate={{
-          x: position.x - 12,
-          y: position.y - 12,
-          scale: 1,
-          borderWidth: "1.5px",
-        }}
-        transition={{
-          type: 'spring',
-          damping: 30,
-          stiffness: 200,
-          mass: 0.8,
-        }}
-        initial={false}
-      />
-
-      {/* Outer glow */}
-      <motion.div
-        className='absolute top-0 left-0 w-[36px] h-[36px] rounded-full bg-[#C24141] blur-[10px]'
-        animate={{
-          x: position.x - 18,
-          y: position.y - 18,
-          scale: 1,
-          opacity: 0.2,
-        }}
-        transition={{
-          type: 'spring',
-          damping: 40,
-          stiffness: 150,
-          mass: 1,
-        }}
-        initial={false}
-      />
-    </div>
+    <motion.div
+      className='pointer-events-none fixed left-0 top-0 z-[9999] h-8 w-8 rounded-full bg-white mix-blend-difference'
+      style={{ x, y, opacity, scale }}
+    />
   );
 }
