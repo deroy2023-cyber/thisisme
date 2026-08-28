@@ -187,6 +187,80 @@ later catches a wheel event dispatched pre-hydration that the compositor applies
 the lock engages — that leaked ~400 px on roughly one run in three, and the curtains then
 parted onto the wrong part of the site.
 
+**Footer wordmark overlap + the "Coolvetica Regular" trap** (reported from a
+phone screenshot: the A and T collided inside the red block).
+
+The real cause was **`text-[34vw]` sizing a word that lives in an inset block**,
+plus a font-resolution trap that sent an earlier attempt at this badly wrong.
+
+**The trap — read this before touching any Coolvetica declaration.**
+Eight components declare `'"Coolvetica Regular", Coolvetica, sans-serif'`. That
+first name looks dead: no `@font-face` defines it. It is NOT dead. Browsers
+resolve it by `local()` name match against a **desktop-installed** Coolvetica
+Regular, which is a genuinely wider face than anything this site serves.
+Measured, `INSIDE ATWO STUDIOS`:
+
+| source | width @64px |
+|---|---|
+| local `Coolvetica Rg.otf` | **597.0px** — the intended headings |
+| local `Coolvetica Rg Cond.otf` | 372.2px |
+| CDN `gWeZipkG.woff2` | 372.2px — **identical to Condensed** |
+
+The single CDN asset is declared twice in globals.css, as both
+`"Coolvetica Condensed"` and `"Coolvetica"`. It is the condensed face under two
+names, and **the true regular face is not served by this site at all.** So the
+headings have always rendered wider on a machine with the font installed than
+they do for a visitor without it. That discrepancy is still open — closing it
+means self-hosting the real face under `public/fonts/`, which is a **licensing
+question** (© 1999-2024 Typodermic Fonts Inc.; desktop and webfont licences are
+sold separately). Not done, deliberately.
+
+Adding an `@font-face` for `"Coolvetica Regular"` pointing at the CDN asset
+**overrides the local match and silently narrows every heading**. That was tried
+and reverted; globals.css now carries a DO-NOT block with the measurements.
+
+**What actually fixed the overlap.** The red block is inset `mx-5 / md:mx-10 /
+lg:mx-[138px]`, so its width is the viewport minus up to 276px, but the wordmark
+was sized in `vw` — which ignores that inset. "ATWO" is 2.487em wide in the
+intended face, so at 1024px a 34vw wordmark is 866px inside a 748px block and
+the A and O were clipped by `overflow-hidden`. Now `@container` on the block and
+`text-[38cqw]` on the h2, so the gutters are self-cancelling at every width.
+Swept 360/390/430/768/1024/1280/1440/1920: fits at all eight, no page scroll.
+
+**`KERN_EM` was correct all along** — `[-0.169, 0, -0.067, 0]`. A prior pass
+"corrected" it to `[-0.074, 0, -0.006, 0]`; those were measured while the stray
+`@font-face` above was in effect, so they captured the CONDENSED face's metrics
+and were wrong for the face actually drawn. Re-measured against the real stack:
+`width("ATWO")` as one run 2.487em vs 2.723em summed = **-0.236em total**, per
+pair AT -0.169 / TW 0 / WO -0.067. Restored. The split wordmark now matches a
+plain text node to within 0.06px at every swept width.
+
+**The kerning gate is a WIDTH PROBE, not a font API call.** Neither API can
+answer the question: `"Coolvetica Regular"` may be satisfied by a desktop font
+that never appears in `document.fonts`, and `document.fonts.check()` returns
+true for a fallback — verified, it also returned true for
+`check('1em "NoSuchFaceXYZ"')`. The probe renders "ATWO" off-screen at 1000px in
+the wordmark's own stack and compares width-per-em against 2.487 (±2%), which is
+indifferent to which mechanism supplied the face.
+
+Also: removed unused `Inter` / `Barlow_Semi_Condensed` from `layout.tsx` (loaded
+on every page, referenced nowhere — the only `Inter` greps were
+`IntersectionObserver`), and added a `preload` for the CDN woff2, which is only
+fetched once layout finds text needing it and so still flashed on mobile data.
+
+**Three measurement traps hit here, recorded so they are not repeated:**
+- *A stale `next start` on port 3000 served a 500 and the page never hydrated*,
+  so `useEffect` never ran and margins read `0px` regardless of the code — the
+  same trap the Phase 5 grain-overlay measurement fell into. Kill the port and
+  assert HTTP 200 before trusting any footer measurement.
+- *`scrollTo(0, scrollHeight)` does not reveal the footer.* The intro holds a
+  scroll lock ~8s and the reveal is gated on a `useInView` sentinel an instant
+  jump never crosses; screenshots taken that way show the preloader. Wait out
+  the intro, then scroll in increments.
+- *Measuring a font while your own `@font-face` is overriding it* produces
+  confident, precise, wrong numbers. Confirm which face is actually drawing
+  (width-probe it) before recording any metric derived from it.
+
 **Not repeating the Phase 1 deletion bug.** The timeline lives in `useGSAP` with an empty
 dep array and `onDone` held in a ref, so no parent re-render can restart it; `page.tsx`
 also passes a `useCallback`. A failsafe timeout, armed when the timeline actually starts,

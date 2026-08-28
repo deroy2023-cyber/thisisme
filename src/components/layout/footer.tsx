@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
 import BookCallModal from "@/src/components/ui/BookCallModal";
 
@@ -30,14 +30,91 @@ const EASE = [0.22, 1, 0.36, 1] as const;
    margin between the masks. em, so they track the vw-based font size. Indexed
    by the letter the gap FOLLOWS; the last letter has no trailing gap.
 
+   CONFIRMED CORRECT 2026-08-28, re-measured against the face this h2 actually
+   resolves to ('"Coolvetica Regular", Coolvetica, sans-serif'):
+
+       width("ATWO") as one run   2.487em
+       width("A")+..+width("O")   2.723em
+       total kerning              -0.236em
+       per pair   AT -0.169   TW  0.000   WO -0.067
+
+   These match the values below exactly. A prior session briefly changed them to
+   -0.074/-0.006; that was measured while a stray @font-face was overriding
+   "Coolvetica Regular" onto the CDN's CONDENSED file, so it captured the wrong
+   font's metrics. Before re-measuring, confirm which face is really being drawn
+   (see the DO-NOT block in globals.css) — the condensed and regular faces have
+   very different widths and neither one's kerns fit the other.
+
    A margin and NOT letter-spacing: letter-spacing adds its value after every
    atomic inline including the final one, leaving a trailing gap that throws the
    flex centering off by half a step. And NOT a transform — motion owns the
    transform on the inner span. */
 const KERN_EM = [-0.169, 0, -0.067, 0];
 
+/* The stack the wordmark is drawn in, and the width its "ATWO" occupies per em
+   when the intended face is the one drawing it (measured: 2.487em).
+
+   The gate below is a WIDTH PROBE, not a document.fonts lookup, because neither
+   font API can answer the question here:
+     - "Coolvetica Regular" may be satisfied by a locally-installed desktop
+       font, which never appears in document.fonts at all.
+     - document.fonts.check() returns true for a fallback — verified, it also
+       returned true for check('1em "NoSuchFaceXYZ"').
+   Measuring the rendered width is indifferent to WHICH mechanism supplied the
+   face; it asks the only question that matters, which is whether the glyphs now
+   on screen are the ones KERN_EM was measured against. */
+const KERN_STACK = '"Coolvetica Regular", Coolvetica, sans-serif';
+const KERN_WORD_EM = 2.487;
+const KERN_TOLERANCE = 0.02; // ±2%, comfortably inside the gap to any fallback
+
 export default function Footer() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+
+  /* KERN_EM encodes one specific face's pair kerns, so it may only be applied
+     while that face is the one actually drawing the wordmark. A fallback (or
+     the condensed face, which this site also serves) has different glyph widths
+     but would still receive the same em-relative pull-back, tightening the word
+     into itself. Zero kerning on an unrecognised face is slightly loose, which
+     is a much better failure than letters colliding. */
+  const [kernReady, setKernReady] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    let cancelled = false;
+
+    // Render "ATWO" off-screen in the wordmark's own stack and compare its
+    // width per em against the measured target.
+    const probe = () => {
+      const s = document.createElement("span");
+      s.textContent = WORDMARK;
+      s.style.cssText =
+        "position:absolute;visibility:hidden;white-space:pre;" +
+        `font-size:1000px;line-height:0.8;font-family:${KERN_STACK}`;
+      document.body.appendChild(s);
+      const em = s.getBoundingClientRect().width / 1000;
+      s.remove();
+      return Math.abs(em - KERN_WORD_EM) / KERN_WORD_EM <= KERN_TOLERANCE;
+    };
+
+    const settle = () => {
+      if (!cancelled && probe()) setKernReady(true);
+    };
+
+    settle();
+    // Re-check once webfonts settle, for the cold-load case where the probe
+    // above ran against a fallback. document.fonts may be absent (jsdom, older
+    // Safari); the un-kerned wordmark is the correct behaviour there.
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(settle).catch(() => {
+        /* stay un-kerned rather than mis-kerned */
+      });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* The wordmark's trigger is a sentinel near the BOTTOM of the drawer spacer,
      not the <h2> itself. At md+ the footer is sticky-pinned, so it is already
@@ -151,15 +228,23 @@ export default function Footer() {
             </motion.div>
           </div>
 
-          {/* Giant branding text */}
-          <div className="relative flex-1 flex items-center justify-center overflow-hidden bg-accent-red mx-5 md:mx-10 lg:mx-[138px]">
+          {/* Giant branding text.
+
+              @container + a cqw font-size, NOT vw: the block is inset by
+              mx-5 / md:mx-10 / lg:mx-[138px], so its width is the viewport
+              MINUS up to 276px. A vw-based size ignores that inset and the word
+              overflowed its own block between roughly 1024px and 1600px — at
+              1024px a 34vw wordmark is 866px wide inside a 748px block, and the
+              A and O were clipped by the overflow-hidden here. Sizing off the
+              container makes the gutters self-cancelling at every width. */}
+          <div className="@container relative flex-1 flex items-center justify-center overflow-hidden bg-accent-red mx-5 md:mx-10 lg:mx-[138px]">
             {/* .letter-mask / .letter-inner are the hero's own primitives
                 (globals.css:145-155). They hard-code line-height 0.85, which the
                 spans would apply to themselves and override the h2's leading —
                 so lineHeight is restated inline to keep the wordmark exactly the
                 size and position it was before. */}
             <h2
-              className="text-[34vw] leading-[0.8] tracking-normal text-off-white whitespace-nowrap select-none"
+              className="text-[38cqw] leading-[0.8] tracking-normal text-off-white whitespace-nowrap select-none"
               style={{
                 fontFamily: REGULAR,
               }}
@@ -168,7 +253,10 @@ export default function Footer() {
                 <span
                   key={i}
                   className="letter-mask"
-                  style={{ lineHeight: 0.8, marginRight: `${KERN_EM[i]}em` }}
+                  style={{
+                    lineHeight: 0.8,
+                    marginRight: kernReady ? `${KERN_EM[i]}em` : 0,
+                  }}
                 >
                   <motion.span
                     className="letter-inner"

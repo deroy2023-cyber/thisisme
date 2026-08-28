@@ -28,6 +28,26 @@
   font-weight: 400;
 }
 
+/* DO NOT define a webfont @font-face for "Coolvetica Regular" pointing at the
+   CDN asset above. Eight components (footer, fullscreen-menu, about, portfolio,
+   services, why-choose-us, section-header) declare their stack as
+   '"Coolvetica Regular", Coolvetica, sans-serif'. That first name is NOT dead:
+   browsers resolve it by local() name match against a desktop-installed
+   Coolvetica Regular, which is a genuinely WIDER face than anything served here.
+
+   Measured, width of "INSIDE ATWO STUDIOS":
+     local Coolvetica Rg.otf        597.0px @64px   <- the intended headings
+     local Coolvetica Rg Cond.otf   372.2px @64px
+     CDN gWeZipkG.woff2             372.2px @64px   <- identical to Condensed
+
+   The single CDN asset is declared twice above, as both "Coolvetica Condensed"
+   and "Coolvetica"; it is the condensed face under two names, and the true
+   regular face is not served by this site at all. Aliasing "Coolvetica Regular"
+   onto it therefore does not "make the name resolve" — it overrides the local
+   match and silently narrows every heading on machines that have the font.
+   Shipping the real face means self-hosting it under public/fonts/ (licensing
+   permitting), not aliasing the CDN file. */
+
 /* ═══════════════════════════════════════════
    DM SANS 9PT REGULAR (services expanded copy)
    ═══════════════════════════════════════════ */
