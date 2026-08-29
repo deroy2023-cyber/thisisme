@@ -23,8 +23,8 @@ export default function SectionHeader({ label, number, dark = false, color, soli
   const inner = (
     <>
       <div className="flex justify-between items-baseline pb-1">
-        <span className={`text-[18px] uppercase ${textColor}`} style={{ fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif', color }}>{label}</span>
-        <span className={`text-[18px] uppercase ${textColor}`} style={{ fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif', color }}>({number.replace(/[()]/g, '')})</span>
+        <span className={`text-[clamp(13px,1.3vw,18px)] uppercase min-w-0 ${textColor}`} style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif', letterSpacing: '-0.02em', color }}>{label}</span>
+        <span className={`text-[clamp(13px,1.3vw,18px)] uppercase min-w-0 ${textColor}`} style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif', letterSpacing: '-0.02em', color }}>({number.replace(/[()]/g, '')})</span>
       </div>
       <div className={`w-full h-px ${lineColor}`} style={{ backgroundColor: color }} />
     </>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useLenis } from "lenis/react";
 
 interface TimeSlot {
   time: string;
@@ -115,15 +116,30 @@ export default function BookCallModal({ isOpen, onClose }: BookCallModalProps) {
     }, 300);
   };
 
-  // Lock body scroll when modal is open
+  /* Pausing Lenis is the only thing that actually locks the page: it drives
+     scroll imperatively on documentElement, so `overflow: hidden` alone does
+     not hold it. This modal previously set body overflow only, and the page
+     scrolled freely behind it on wheel and touch. Same pattern as
+     fullscreen-menu.tsx, including the ref mirror — useLenis() returns
+     undefined on the first render and the instance on the next, so reading it
+     directly inside the effect would capture the undefined. Body overflow is
+     kept as well, for the non-Lenis path (reduced motion, or before hydration). */
+  const lenis = useLenis();
+  const lenisRef = useRef(lenis);
+  lenisRef.current = lenis;
+
   useEffect(() => {
+    const l = lenisRef.current;
     if (isOpen) {
       document.body.style.overflow = "hidden";
+      l?.stop();
     } else {
       document.body.style.overflow = "";
+      l?.start();
     }
     return () => {
       document.body.style.overflow = "";
+      l?.start();
     };
   }, [isOpen]);
 
@@ -134,7 +150,7 @@ export default function BookCallModal({ isOpen, onClose }: BookCallModalProps) {
     };
     if (isOpen) window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   const dates = getAvailableDates();
 
@@ -169,7 +185,15 @@ export default function BookCallModal({ isOpen, onClose }: BookCallModalProps) {
 
           {/* Modal */}
           <motion.div
-            className="relative w-[94vw] max-w-[520px] max-h-[85vh] bg-white overflow-hidden"
+            /* flex column + max-h-[85dvh]: the body below is `flex-1 min-h-0`
+               and takes whatever is left after the header, instead of being
+               sized by calc(85vh - 100px) where the 100 was a guess at the
+               header's height. The real header measures ~106px once the md:
+               heading step applies, so the scroll region was 6px too tall and
+               its last rows were clipped by this overflow-hidden — more once
+               the subtitle wrapped on a narrow screen. dvh so the on-screen
+               keyboard cannot push the submit button out of reach. */
+            className="relative flex flex-col w-[94vw] max-w-[520px] max-h-[85dvh] bg-white overflow-hidden"
             style={{ borderRadius: 0 }}
             initial={{ opacity: 0, y: 40, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -177,7 +201,7 @@ export default function BookCallModal({ isOpen, onClose }: BookCallModalProps) {
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
               <div>
                 <h3
                   className="font-coolvetica text-[28px] md:text-[34px] text-primary-red leading-tight"
@@ -223,10 +247,10 @@ export default function BookCallModal({ isOpen, onClose }: BookCallModalProps) {
             </div>
 
             {/* Divider */}
-            <div className="h-[2px] bg-primary-red/10 mx-6" />
+            <div className="h-[2px] bg-primary-red/10 mx-6 shrink-0" />
 
             {/* Content */}
-            <div className="px-6 py-5 overflow-y-auto" style={{ maxHeight: "calc(85vh - 100px)" }}>
+            <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 overscroll-contain">
               <AnimatePresence mode="wait">
                 {/* ─── STEP: DATE ─── */}
                 {step === "date" && (
@@ -237,7 +261,7 @@ export default function BookCallModal({ isOpen, onClose }: BookCallModalProps) {
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.25 }}
                   >
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                       {dates.map((d) => (
                         <button
                           key={d.value}
@@ -310,7 +334,7 @@ export default function BookCallModal({ isOpen, onClose }: BookCallModalProps) {
                         </p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {slots.map((slot) => (
                           <button
                             key={slot.time}
@@ -478,7 +502,7 @@ export default function BookCallModal({ isOpen, onClose }: BookCallModalProps) {
                       We couldn&apos;t book your call. Please try again or reach
                       out to us directly.
                     </p>
-                    <div className="flex gap-3 mt-6">
+                    <div className="flex flex-wrap gap-3 mt-6">
                       <button
                         onClick={() => setStep("details")}
                         className="px-6 py-3 border-2 border-primary-red text-primary-red font-coolvetica text-[16px] hover:bg-primary-red/5 transition-colors"

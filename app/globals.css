@@ -28,6 +28,29 @@
   font-weight: 400;
 }
 
+/* HISTORICAL NOTE — headings used to declare '"Coolvetica Regular", Coolvetica,
+   sans-serif' with no @font-face for that first name. Browsers resolved it by
+   local() match against a desktop-installed Coolvetica Regular (Typodermic
+   Fonts, no webfont license held for it), which is why headings rendered wide
+   on some machines and narrow (via the CDN's Condensed file, aliased below as
+   both "Coolvetica Condensed" and "Coolvetica") on every visitor without that
+   font installed. Coolvetica has no free license for commercial use — every
+   copy, including the "free" download on dafont, is licensed personal-use
+   only (verified against Typodermic's own site and dafont's own license
+   label) — so it is not an option here regardless of how it renders.
+
+   Replaced 2026-08-29 with Manrope (800), self-hosted via next/font/google in
+   layout.tsx (SIL Open Font License — free for commercial use, no local()
+   ambiguity, identical render for every visitor). Three earlier attempts
+   (Chivo Bold, Squada One, Big Shoulders Display) were reverted on user
+   feedback; Manrope was chosen last despite being a UI/text geometric sans
+   rather than a bold display face, so it reads lighter/narrower than the
+   original mark. See REGULAR in footer.tsx and the matching inline styles in
+   about.tsx, portfolio.tsx, services.tsx, why-choose-us.tsx,
+   section-header.tsx and fullscreen-menu.tsx. Do not reintroduce a
+   "Coolvetica Regular" @font-face here — nothing references that name
+   anymore, and the CDN has never served a true regular face regardless. */
+
 /* ═══════════════════════════════════════════
    DM SANS 9PT REGULAR (services expanded copy)
    ═══════════════════════════════════════════ */
@@ -35,9 +58,46 @@
 .font-dm-9pt {
   font-family: var(--font-dm-sans), sans-serif;
   font-weight: 400;
-  font-size: 17.28px; /* 9pt +40% */
+  /* 17.28px (9pt +40%) is the design size and stays the ceiling. It was a flat
+     value at every viewport, which is the body copy for the whole services
+     accordion and both why-choose-us cards -- at 320px those columns are
+     narrow enough that 17.28px wraps to a very ragged measure. */
+  font-size: clamp(14px, 1.1vw, 17.28px);
   line-height: 1.5;
 }
+
+/* The fullscreen menu's desktop composition is nine absolutely-positioned
+   blocks with no flow relationship between them, so nothing pushes anything
+   else and a collision is silent rather than visible as overlap in the source.
+
+   Keyed on `md:` alone, a landscape phone (844x390) satisfied the width test
+   and took that layout inside 390px of height, where the links overlapped the
+   video and the wordmark by ~80px. `wide:` adds a height condition, so short
+   landscape viewports fall through to the mobile stack instead -- which is a
+   scrolling flex column and copes with any height.
+
+   The 440px floor sits ABOVE the tallest landscape phone (~430px) and BELOW any
+   real desktop viewport. It is NOT "the height the composition needs to fit":
+   read that way it was briefly set to 600px, which broke every wide but short
+   window. What is tested is VIEWPORT height, not screen height, so a snapped or
+   half-height window -- or one with DevTools docked to the bottom -- fell under
+   600 on a large monitor and dropped the entire desktop layout, video included,
+   into the mobile stack. Keep this floor well clear of anything a desktop user
+   can produce.
+
+   `max-wide:` is its inverse, replacing `max-md:` on the menu's own classes.
+   The `not all and` form negates the whole query, so it is an exact complement.
+
+   MIRRORED in src/lib/breakpoints.ts as MENU_DESKTOP_MIN_H, which gates the
+   menu video's load()/play(). CSS cannot read that constant, so the two are one
+   decision written twice -- change them together or the layout desyncs from the
+   JS that decides whether the video is allowed to fetch. */
+/* Real pointers only. CSS :hover latches on touch browsers after a tap, so a
+   group-hover zoom stayed applied until the next tap elsewhere. */
+@custom-variant hover-hover (@media (hover: hover));
+
+@custom-variant wide (@media (min-width: 768px) and (min-height: 440px));
+@custom-variant max-wide (@media not all and (min-width: 768px) and (min-height: 440px));
 
 @theme {
   /* Fullscreen menu gutter — one token every edge-anchored block in the menu
@@ -45,6 +105,18 @@
      as a literal at each edge. 33px is the design spec at desktop; it eases down
      on narrow viewports so the gutter never eats a phone's usable width. */
   --spacing-menu-gutter: clamp(20px, 3.4vw, 33px);
+
+  /* Site-wide horizontal gutter. Replaces the repeated px-5 md:px-10
+     lg:px-[75px] triple, which stepped at two breakpoints and then froze at
+     75px forever -- 2%% of a 3840px monitor. Continuous, so there is no dead
+     zone above lg and no jump at either breakpoint. The 20/75 endpoints are
+     the values that triple already used at its extremes, so nothing moves at
+     360px or at 1875px; only the middle and the far end change. */
+  --spacing-gutter: clamp(20px, 4vw, 75px);
+
+  /* The content column cap the hero already used as a literal max-w-[1318px].
+     Named so the sections that had no cap at all can share it. */
+  --spacing-page-max: 1318px;
 
   --font-coolvetica-heavy: "Coolvetica Heavy Compressed", sans-serif;
   --font-coolvetica-condensed: "Coolvetica Condensed", sans-serif;
@@ -142,11 +214,27 @@
    LETTER CLIP MASK
    ═══════════════════════════════════════════ */
 
+/* The mask exists to hide the letter's y:120% start position, so it must keep
+   overflow:hidden. But at line-height .85 the box is 0.85em while Coolvetica
+   Heavy Compressed's glyphs need 1.025em -- measured, a 340px box against 410px
+   of content at 400px type, i.e. 0.175em of ink cut off every letter, top and
+   bottom, at every viewport.
+
+   Padding the box by that overflow and pulling the padding back out with an
+   equal negative margin gives the glyphs room without moving the text: the
+   painted position and the line box are both unchanged, only the clip
+   rectangle grows. The horizontal side stays clipped at 0 so the entrance
+   still wipes cleanly from below.
+
+   video-stack.tsx hit this same problem with the same family and solved it with
+   TITLE_MASK_RATIO = 1.8, noting glyphs "were still clipped at 1.2 and 1.5". */
 .letter-mask {
   display: inline-block;
   overflow: hidden;
   line-height: 0.85;
   vertical-align: top;
+  padding-block: 0.18em;
+  margin-block: -0.18em;
 }
 
 .letter-inner {

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
+import { useMediaQuery } from '@/src/hooks/use-media-query';
 
 interface Particle {
   id: number;
@@ -32,8 +33,23 @@ export default function FloatingParticles({ loading = false }: FloatingParticles
   const [inView, setInView] = useState(true);
   const wrapRef = useRef<HTMLDivElement>(null);
 
+  /* Two gates that were missing entirely. Each particle is its own
+     mix-blend-mode: difference layer, and twelve of them animated infinitely on
+     every phone that loaded the page -- the loading and in-view gates below
+     covered when they run, but never whether they should run at all.
+
+     Touch: a coarse pointer means a phone or tablet, where twelve blend layers
+     are the most expensive thing on the hero and the effect is close to
+     invisible at that size.
+
+     Reduced motion: a user asking for less movement should not get twelve
+     objects drifting continuously. work-card.tsx already honours this. */
+  const reduced = useReducedMotion();
+  const coarsePointer = useMediaQuery('(pointer: coarse)');
+  const suppressed = reduced || coarsePointer;
+
   // Animate only when the hero is actually being looked at.
-  const active = inView && !loading;
+  const active = inView && !loading && !suppressed;
 
   useEffect(() => {
     setParticles(Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
@@ -62,9 +78,20 @@ export default function FloatingParticles({ loading = false }: FloatingParticles
     return () => observer.disconnect();
   }, []);
 
+  /* Deliberately NOT `if (suppressed) return null`. suppressed derives from
+     matchMedia, which is false on the server and for the first client render,
+     so returning null on the second render removes a node React expected to
+     find and throws a hydration mismatch (React #418 -- confirmed against a
+     pre-change baseline, this component rendered clean before).
+
+     The particles array is empty until its own post-mount effect fills it, so
+     the wrapper renders with zero children on the server either way. Leaving
+     the wrapper mounted and gating only the CHILDREN keeps the server and
+     client trees identical, and an empty wrapper is one inert absolutely
+     positioned div -- none of the blend layers that made this worth gating. */
   return (
     <div ref={wrapRef} className="absolute inset-0 overflow-hidden pointer-events-none z-[5]">
-      {particles.map((p) => (
+      {(suppressed ? [] : particles).map((p) => (
         <motion.div
           key={p.id}
           className="particle"

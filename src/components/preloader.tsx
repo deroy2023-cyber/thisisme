@@ -391,10 +391,28 @@ export default function Preloader({ onDone }: PreloaderProps) {
         const rect = barRef.current!.getBoundingClientRect();
         const w = rect.width || BAR_W;
         const h = rect.height || BAR_H;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const coverX = (vw / w) * 1.05;
-        const coverY = (vh / h) * 1.05;
+        /* The cover scale is computed ONCE here, at timeline-build time, but the
+           expand tween it feeds does not run until several seconds later. If the
+           viewport changes in between -- a phone rotated mid-intro, or iOS
+           Safari's URL bar collapsing, which is a ~13% height change -- the
+           scale is stale and the off-white cover no longer reaches the edge,
+           exposing the black field beneath as a band.
+
+           Rebuilding the timeline on resize is not an option: status.md records
+           that restarting it is exactly the Phase 1 bug that left the page
+           blank. So the margin absorbs it instead. Both axes are sized off the
+           LARGER of the two viewport dimensions, which makes the cover
+           orientation-proof (a portrait->landscape rotation cannot present an
+           extent bigger than the longest side), and the safety factor goes from
+           1.05 to 1.2 to swallow the URL-bar delta.
+
+           The cost is a larger composited quad during the expand. status.md
+           notes the factor was trimmed 1.6 -> 1.15 for exactly that reason and
+           measured 7.3% -> 6.1% dropped frames; 1.2 sits just above that trim,
+           so the win is essentially retained while the correctness hole closes. */
+        const vmax = Math.max(window.innerWidth, window.innerHeight);
+        const coverX = (vmax / w) * 1.2;
+        const coverY = (vmax / h) * 1.2;
         /* finish() and the unmount happen on the SAME frame. The cover is
            #F5F5F0 and so is the page beneath it, so removing the overlay is
            invisible -- and the hero's entrance then plays onto exactly the

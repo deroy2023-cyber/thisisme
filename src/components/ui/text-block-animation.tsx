@@ -155,14 +155,50 @@ export default function TextBlockAnimation({
         requestScrollTriggerRefresh();
       };
 
+      /* Guarded on both branches. `document.fonts?.status` was optional-chained
+         while `document.fonts.ready` on the next line was not, so any
+         environment without the Font Loading API took the else branch and threw
+         on the property access. footer.tsx guards both. */
       if (document.fonts?.status === 'loaded') {
         build();
+      } else if (document.fonts?.ready) {
+        document.fonts.ready.then(build).catch(() => {});
       } else {
-        document.fonts.ready.then(build);
+        build();
       }
+
+      /* SplitText with type:'lines' bakes the CURRENT viewport's line breaks
+         into the DOM. Without a re-split, a rotation or window resize leaves
+         text wrapped for the old width -- visibly wrong breaks, and reveal
+         blocks sized to lines that no longer exist.
+
+         Width only: a vertical-only change (mobile URL bar collapsing, the
+         on-screen keyboard) cannot alter horizontal line breaking, and
+         re-splitting on it would tear down the animation mid-scroll on every
+         phone. rAF-debounced so a drag-resize rebuilds once at the end. */
+      let lastW = container.clientWidth;
+      let resizeRaf = 0;
+      const onResize = () => {
+        if (resizeRaf) cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => {
+          resizeRaf = 0;
+          const w = containerRef.current?.clientWidth ?? lastW;
+          if (w === lastW || cancelled) return;
+          lastW = w;
+          tl?.scrollTrigger?.kill();
+          tl?.kill();
+          tl = null;
+          split?.revert();
+          split = null;
+          build();
+        });
+      };
+      window.addEventListener('resize', onResize, { passive: true });
 
       return () => {
         cancelled = true;
+        if (resizeRaf) cancelAnimationFrame(resizeRaf);
+        window.removeEventListener('resize', onResize);
         tl?.scrollTrigger?.kill();
         tl?.kill();
         // revert() restores the original markup, discarding the wrapper divs

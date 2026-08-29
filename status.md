@@ -2,6 +2,7 @@
 
 ## Current Phase: Optimization complete — pending browser QA
 **Status:** Phases 0–4 done. Phase 5 (design tweaks) and Phase 6 (SEO/meta) still open.
+Responsiveness audit + fixes done (see "Responsiveness pass" below).
 
 Last updated: 2026-08-28
 
@@ -17,6 +18,7 @@ Last updated: 2026-08-28
 | Phase 3 | Orbit slider optimization | ✅ Done |
 | Phase 4 | Bundle, assets, config | ✅ Done |
 | Phase 5 | Minor Design Changes | 🚧 In Progress |
+| Phase 5.1 | Responsiveness audit & fixes | ✅ Done |
 | Phase 6 | Meta Tags & SEO | Not Started |
 | Phase 7 | Final browser verification | ⏳ Pending (see below) |
 
@@ -104,6 +106,69 @@ neighbouring section animated in, so the grid read as unfinished.
 
 Known leftover, out of scope: `footer.tsx:66` and `:75` still use `target="blank"`.
 
+**Services took 5-6 wheel notches to scroll past.** Reported as "having to do 5-6
+scrolls to get to the next part". Not a Lenis tuning issue — a runway arithmetic one.
+
+The section was `lg:h-[200dvh]` over a `lg:h-dvh` sticky panel, and `useScroll` is
+`["start end", "end start"]`, so progress spans section + viewport = **300dvh**. On
+that scale the panel pins at progress **0.333**, but the reveal was keyed 0.07→0.35:
+
+- The split ran 0.07→0.333 — i.e. ~95% complete **before the panel ever pinned**, so
+  the reveal played while the section was still travelling up the viewport.
+- From 0.35 to 0.667 (~95dvh, ~1000px, 5-6 notches at `wheelMultiplier: 1`) the panel
+  sat pinned with **nothing animating**. That dead runway was the whole complaint.
+
+Runway shrunk to `lg:h-[130dvh]` (30dvh of pinned hold), which is the right height and
+is unchanged since. The keyframe values that first accompanied it were **wrong twice
+over** and were corrected in the follow-up below — do not reinstate them.
+
+Two related fixes fell out:
+- `boxDone`'s upper bound (`<= 0.75`) re-hid the entire list near the section's end, so
+  scrolling back up blanked the rows. Removed — it is now a one-way threshold.
+- The rows' own `whileInView` + `delay: 0.5 + i * 0.01` fired on **section entry**, long
+  before the pin, so their slide-in was over and invisible; the visible timing was
+  entirely the parent's `boxDone` fade. Rows are now variant children of that wrapper
+  (`staggerChildren: 0.05`), so the single `boxDone` flip cascades the list in at the
+  pin. Off desktop the container is unconditionally `shown`, preserving mobile.
+
+The `boxDoneRef` guard is untouched — it is the Phase 1 fix that keeps this off the
+per-frame `setState` path, and the threshold change does not affect it.
+
+**Correction — the keyframes above were wrong on two counts.** Both fixed; recorded
+because the first error is very easy to repeat.
+
+*1. `0.565` is the pin RELEASE, not the pin engage.* With a `130dvh` section and
+`["start end","end start"]`, progress spans section + viewport = 230dvh and there are
+**two** boundaries:
+
+| progress | dvh | event |
+|---|---|---|
+| **0.435** | 100 | pin **engages** — section top meets viewport top |
+| **0.565** | 130 | pin **releases** — section bottom meets viewport bottom |
+
+The values shipped against "the 0.565 pin" (`gridColumns` 0.55→0.70, `boxDone` 0.62)
+therefore fired *after the panel had already let go* — the expand and the service
+reveal played on a section scrolling off screen. Strictly worse than the original bug.
+When deriving these, compute **both** boundaries; the smaller one is the pin.
+
+*2. The choreography was inverted.* "Pin in one scroll" was read as "reach the pinned
+state as fast as possible", so the pin was scheduled first and the expand after it. The
+client's intent is the opposite order: **the red box expand is scroll-tracked, then the
+section pins, and the options appear as the pin engages.**
+
+Current values, confirmed against the client's intended sequence:
+- `panelOpacity` **0.16→0.28** — resolves early; the panel cannot fade in *after* the
+  box it belongs to has finished opening.
+- `gridColumns` **0.16→0.435** — scrubs across the approach, fully open exactly on the
+  pin. Starts at 0.16 rather than 0 so the section is on screen a beat before it opens.
+- `boxDone` **≥ 0.435** — options land on the pin. `delayChildren` dropped to 0 for the
+  same reason; the expand already supplies the lead-in.
+
+⚠️ The section height and these ranges are **coupled arithmetic**. Changing
+`lg:h-[130dvh]` moves both boundaries (`100/total` and `section/total`) and every range
+must be re-derived. A keyframe belongs in `[0, 0.435]` to play on the approach or
+`[0.435, 0.565]` to play while pinned; past 0.565 it animates nothing the user can see.
+
 **Preloader — "two bars" (ATWO)** (`src/components/preloader.tsx`).
 Choreographed against a reference video the client supplied. In the reference a
 loading bar resolves into that studio's "L" logomark and scales up until its white
@@ -187,6 +252,80 @@ later catches a wheel event dispatched pre-hydration that the compositor applies
 the lock engages — that leaked ~400 px on roughly one run in three, and the curtains then
 parted onto the wrong part of the site.
 
+**Footer wordmark overlap + the "Coolvetica Regular" trap** (reported from a
+phone screenshot: the A and T collided inside the red block).
+
+The real cause was **`text-[34vw]` sizing a word that lives in an inset block**,
+plus a font-resolution trap that sent an earlier attempt at this badly wrong.
+
+**The trap — read this before touching any Coolvetica declaration.**
+Eight components declare `'"Coolvetica Regular", Coolvetica, sans-serif'`. That
+first name looks dead: no `@font-face` defines it. It is NOT dead. Browsers
+resolve it by `local()` name match against a **desktop-installed** Coolvetica
+Regular, which is a genuinely wider face than anything this site serves.
+Measured, `INSIDE ATWO STUDIOS`:
+
+| source | width @64px |
+|---|---|
+| local `Coolvetica Rg.otf` | **597.0px** — the intended headings |
+| local `Coolvetica Rg Cond.otf` | 372.2px |
+| CDN `gWeZipkG.woff2` | 372.2px — **identical to Condensed** |
+
+The single CDN asset is declared twice in globals.css, as both
+`"Coolvetica Condensed"` and `"Coolvetica"`. It is the condensed face under two
+names, and **the true regular face is not served by this site at all.** So the
+headings have always rendered wider on a machine with the font installed than
+they do for a visitor without it. That discrepancy is still open — closing it
+means self-hosting the real face under `public/fonts/`, which is a **licensing
+question** (© 1999-2024 Typodermic Fonts Inc.; desktop and webfont licences are
+sold separately). Not done, deliberately.
+
+Adding an `@font-face` for `"Coolvetica Regular"` pointing at the CDN asset
+**overrides the local match and silently narrows every heading**. That was tried
+and reverted; globals.css now carries a DO-NOT block with the measurements.
+
+**What actually fixed the overlap.** The red block is inset `mx-5 / md:mx-10 /
+lg:mx-[138px]`, so its width is the viewport minus up to 276px, but the wordmark
+was sized in `vw` — which ignores that inset. "ATWO" is 2.487em wide in the
+intended face, so at 1024px a 34vw wordmark is 866px inside a 748px block and
+the A and O were clipped by `overflow-hidden`. Now `@container` on the block and
+`text-[38cqw]` on the h2, so the gutters are self-cancelling at every width.
+Swept 360/390/430/768/1024/1280/1440/1920: fits at all eight, no page scroll.
+
+**`KERN_EM` was correct all along** — `[-0.169, 0, -0.067, 0]`. A prior pass
+"corrected" it to `[-0.074, 0, -0.006, 0]`; those were measured while the stray
+`@font-face` above was in effect, so they captured the CONDENSED face's metrics
+and were wrong for the face actually drawn. Re-measured against the real stack:
+`width("ATWO")` as one run 2.487em vs 2.723em summed = **-0.236em total**, per
+pair AT -0.169 / TW 0 / WO -0.067. Restored. The split wordmark now matches a
+plain text node to within 0.06px at every swept width.
+
+**The kerning gate is a WIDTH PROBE, not a font API call.** Neither API can
+answer the question: `"Coolvetica Regular"` may be satisfied by a desktop font
+that never appears in `document.fonts`, and `document.fonts.check()` returns
+true for a fallback — verified, it also returned true for
+`check('1em "NoSuchFaceXYZ"')`. The probe renders "ATWO" off-screen at 1000px in
+the wordmark's own stack and compares width-per-em against 2.487 (±2%), which is
+indifferent to which mechanism supplied the face.
+
+Also: removed unused `Inter` / `Barlow_Semi_Condensed` from `layout.tsx` (loaded
+on every page, referenced nowhere — the only `Inter` greps were
+`IntersectionObserver`), and added a `preload` for the CDN woff2, which is only
+fetched once layout finds text needing it and so still flashed on mobile data.
+
+**Three measurement traps hit here, recorded so they are not repeated:**
+- *A stale `next start` on port 3000 served a 500 and the page never hydrated*,
+  so `useEffect` never ran and margins read `0px` regardless of the code — the
+  same trap the Phase 5 grain-overlay measurement fell into. Kill the port and
+  assert HTTP 200 before trusting any footer measurement.
+- *`scrollTo(0, scrollHeight)` does not reveal the footer.* The intro holds a
+  scroll lock ~8s and the reveal is gated on a `useInView` sentinel an instant
+  jump never crosses; screenshots taken that way show the preloader. Wait out
+  the intro, then scroll in increments.
+- *Measuring a font while your own `@font-face` is overriding it* produces
+  confident, precise, wrong numbers. Confirm which face is actually drawing
+  (width-probe it) before recording any metric derived from it.
+
 **Not repeating the Phase 1 deletion bug.** The timeline lives in `useGSAP` with an empty
 dep array and `onDone` held in a ref, so no parent re-render can restart it; `page.tsx`
 also passes a `useCallback`. A failsafe timeout, armed when the timeline actually starts,
@@ -207,6 +346,102 @@ Caveat for future measurement: `smooth-scroll.tsx` sets `gsap.ticker.lagSmoothin
 so GSAP absorbs dropped frames and the timeline drifts behind wall-clock whenever
 something stalls rAF. Screenshot-per-beat harnesses report the later beats as late; poll
 with cheap `evaluate()` calls instead.
+
+---
+
+## Responsiveness pass (2026-08-28)
+
+Full audit of all 21 components, then fixes. Verified in Playwright on a
+production build at 15 viewports (320x568 through 3840x2160, including
+844x390 landscape and 3440x1440 ultrawide): **zero horizontal page overflow and
+zero clipped h1/h2/nav at every one**, no page errors.
+
+### The two bugs behind "not responsive on 16:9"
+- **Video-stack side titles clipped by exactly 32px at every 16:9 desktop from
+  1280x720 to 1920x1080.** `marginBoxW` subtracted `CARD_CLEARANCE_PX` (16) but
+  never the title container's own `px-4` (32), so the font was sized for a box
+  32px wider than it had. The comment on that container claimed the padding was
+  accounted for; the arithmetic did not do it. Titles now fit and are *larger*
+  (44px at 1920 vs a clipped 35.9px).
+- **Hero H1 froze above `lg`.** `text-[22vw] md:text-[280px] lg:text-[367px]`
+  stopped responding at 1024px, so the wordmark was 81% of width at 1440 but 30%
+  at 3840 — shrinking into the middle of every large monitor — while overshooting
+  and clipping 61-71px per side between 768 and 1023px. Now one continuous
+  `clamp(76px,25.5vw,560px)`, which passes through exactly 367px at 1440 so the
+  reference viewport is pixel-identical.
+
+### CORRECTION to two earlier claims — measure the font, do not estimate it
+`video-stack.tsx`'s `CHAR_WIDTH_RATIO = 0.5` is roughly **double** the truth and
+must not be used for reasoning about layout elsewhere. Probed off the live CDN
+assets in a real browser:
+
+| string | face | em width | per char |
+|---|---|---|---|
+| `ATWO STUDIOS.` | Heavy Compressed | **3.178em** | 0.245 |
+| `TROPICAL ESTATE` | Condensed | 4.574em | 0.305 |
+| `INSIDE ATWO STUDIOS` | Condensed | 5.815em | 0.306 |
+
+`CHAR_WIDTH_RATIO` is now 0.31. Two audit findings derived from the old 0.5 were
+**wrong and were not acted on**: the hero H1 does *not* clip at 1920x1080, and
+the navbar link row has ~266px of slack at 768px rather than being a dead-heat
+overflow. Navbar link sizes were left untouched.
+
+When probing, note the Heavy Compressed asset is
+`uLMpONHY7W8PeNow8Qzq598WbM.woff2` — using the wrong URL yields a silent
+`status: "error"` and the browser measures a system fallback instead, which is
+how the 0.5 figure looks plausible.
+
+### Other confirmed breakages fixed
+- **`.letter-mask` clipped every hero letter by 0.175em** (measured: a 340px box
+  against 410px of content at 400px type) — `line-height: .85` against glyphs
+  needing 1.025em. Padded and pulled back with an equal negative margin, so the
+  clip rect grows while the painted position is unchanged.
+- **Fullscreen menu on landscape phones.** 844x390 is above `md` on width, so it
+  took the desktop layout — nine absolutely-positioned blocks with no flow
+  relationship — inside 390px of height, overlapping by ~80px. New `wide:` /
+  `max-wide:` custom variants add a `min-height: 600px` condition; short
+  landscape now falls through to the stack. Collisions measured: **0**.
+- **Menu overflow was unreachable, not just off-screen.** `overflow-hidden` +
+  Lenis stopped + `data-lenis-prevent` (which exempts from Lenis without creating
+  a scroller) meant the wordmark and socials were simply gone below ~800px of
+  height. Now `overflow-y-auto overscroll-contain`, `wide:overflow-hidden`.
+- **BookCallModal never locked the page.** It set `document.body.style.overflow`
+  only — which this codebase documents twice as insufficient, since Lenis drives
+  scroll imperatively on documentElement. Now stops Lenis (same ref-mirror as the
+  menu). Verified: page scroll behind the open modal is **0px** at 5 viewports.
+- Modal body was sized `calc(85vh - 100px)` where the real header is ~106px;
+  now a flex column, so no magic number. Buttons/date-grid/time-grid overflowed
+  at 320px; now wrap and step down.
+- **about.tsx: `lg:w-[50%]` image + `lg:w-[55%]` text = 105%.** The image is
+  absolute so it contributed nothing to flex layout and the text ran *under* it —
+  51px at 1024px growing to 128px at 2560px. Both now 50%.
+- about.tsx also gated its animation on `>= 768` while the layout it drives is
+  keyed to `lg:`, so at 768-1023px a full-width in-flow block was slid in from a
+  hardcoded `x: -900`. Now `lg` via the new hook, and the travel is a percentage.
+- **Services sticky panel was a flat `lg:h-[736px]`** — taller than the viewport
+  at 1366x768 and 1024x600, so its last rows were permanently below the fold.
+  Now `min(736px, 100dvh - 2rem)`, with the runway expression kept in sync.
+- `dvh` migration across hero/services/video-stack/why-choose-us/footer/menu/modal.
+  The footer's `md:h-[200vh]`/`md:-mt-[100vh]` pair was converted together — they
+  must share a unit or the cancellation that keeps the page from growing breaks.
+- Particles now off on touch and reduced motion; `group-hover:scale-105` confined
+  to `(hover: hover)` so it stops latching after a tap.
+- SplitText line-splitting now re-splits on **width** change (a vertical-only
+  change cannot alter line breaking, and re-splitting on it would tear down the
+  animation on every mobile URL-bar collapse). `document.fonts` guarded on both
+  branches.
+- Preloader cover scale is captured once but used ~5s later; a rotation or
+  URL-bar collapse left it stale with only a 1.05 margin. Now sized off
+  `max(innerWidth, innerHeight)` at 1.2, which is orientation-proof.
+
+### Trap hit during this pass, recorded
+Adding `if (suppressed) return null` to floating-particles threw **React #418**
+(hydration mismatch): `suppressed` comes from matchMedia, which is false on the
+server and for the first client render, so returning null on the second render
+removed a node React expected. Confirmed against a pre-change baseline that the
+component rendered clean before. Fix: keep the wrapper mounted, gate only the
+children. Any client-only media/pointer state must not change the *shape* of the
+first client render.
 
 ---
 

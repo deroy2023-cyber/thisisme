@@ -24,7 +24,7 @@ function MagneticButton({ children }: { children: string }) {
 
   return (
     <button
-      className="bg-off-black text-off-white px-[38px] py-[14px] rounded-[30px] text-[24px] tracking-wider transition-all duration-200 hover:bg-[#D60000] hover:mix-blend-color-burn pointer-events-auto overflow-hidden md:min-w-[240px] font-coolvetica-condensed"
+      className="bg-off-black text-off-white px-[clamp(20px,4vw,38px)] py-[clamp(10px,1.6vw,14px)] rounded-[30px] text-[clamp(15px,2vw,24px)] tracking-wider transition-all duration-200 hover:bg-[#D60000] hover:mix-blend-color-burn pointer-events-auto overflow-hidden md:min-w-[240px] font-coolvetica-condensed"
       {...hoverProps}
       onClick={handleClick}
     >
@@ -113,7 +113,7 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
        over to. The bar expands to #F5F5F0 and then unmounts, so anything other
        than the same colour here flashes for a frame before the photograph fades
        up. It is only ever visible in that gap and before the image decodes. */
-    <section id='hero' className="relative w-full h-screen overflow-hidden bg-off-white">
+    <section id='hero' className="relative w-full h-dvh overflow-hidden bg-off-white">
       <div className="absolute inset-y-0 left-0 w-full h-full">
         {/* Background with parallax */}
         <motion.div
@@ -145,7 +145,21 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 mix-blend-difference pointer-events-none w-full text-center flex justify-center items-center"
           style={{ scale: titleScale, opacity: titleOpacity }}
         >
-          <h1 className="font-coolvetica-heavy text-[22vw] md:text-[280px] lg:text-[367px] leading-[0.8] text-off-white tracking-normal whitespace-nowrap select-none">
+          {/* One continuous clamp, not 22vw -> md:280px -> lg:367px.
+              "ATWO STUDIOS." measures 3.178em wide in the real Heavy Compressed
+              face (probed off the live CDN asset, not estimated -- the 0.5
+              char-ratio video-stack.tsx uses is roughly double the truth for
+              this face). At 3.178em the two fixed steps overshot the viewport
+              between 768 and 1023px, clipping 61-71px off EACH side against
+              this section's overflow-hidden, and then froze: 367px is 81% of
+              width at 1440 but only 30% at 3840, so the wordmark shrank into
+              the middle of every large monitor.
+
+              25.5vw holds that 81% at every width and passes through exactly
+              367px at 1440px, so the reference viewport is unchanged. The 560px
+              ceiling stops it growing past a comfortable reading size on
+              ultrawide; the 76px floor keeps it legible on a 320px phone. */}
+          <h1 className="font-coolvetica-heavy text-[clamp(76px,25.5vw,560px)] leading-[0.8] text-off-white tracking-normal whitespace-nowrap select-none">
             {heroLetters.map((letter, i) => (
               <span key={i} className="letter-mask">
                 <motion.span
@@ -162,8 +176,8 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
         </motion.div>
 
         {/* Taglines */}
-        <div className="absolute bottom-[30px] left-0 w-full pointer-events-none px-5 md:px-[61px]">
-          <div className="max-w-[1318px] mx-auto w-full text-left relative">
+        <div className="absolute bottom-[clamp(20px,4dvh,30px)] left-0 w-full pointer-events-none px-gutter">
+          <div className="max-w-page-max mx-auto w-full text-left relative pr-[clamp(0px,42vw,320px)] md:pr-[280px]">
             <motion.div className="mix-blend-difference text-off-white" style={{ opacity: lowerOpacity }}>
               <p className="text-[clamp(16px,3vw,24px)] tracking-wider leading-tight font-coolvetica-condensed">
                 <WordReveal text="PRODUCTION OVERHEAD?" baseDelay={TAGLINE_START} loading={loading} />
@@ -219,10 +233,10 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
 
         {/* CTA Button */}
         <motion.div
-          className="absolute bottom-[30px] right-0 z-20 w-full flex justify-end overflow-hidden pb-1 px-5 md:px-[61px] pointer-events-none"
+          className="absolute bottom-[clamp(20px,4dvh,30px)] right-0 z-20 w-full flex justify-end overflow-hidden pb-1 px-gutter pointer-events-none"
           style={{ opacity: lowerOpacity }}
         >
-          <div className="max-w-[1318px] mx-auto w-full flex justify-end">
+          <div className="max-w-page-max mx-auto w-full flex justify-end">
             <motion.div
               initial={{ y: '110%' }}
               animate={!loading ? { y: '0%' } : {}}

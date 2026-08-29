@@ -35,16 +35,16 @@ const PROJECTS: Project[] = [
 export default function Portfolio() {
   return (
     <section id="work" className="relative w-full bg-white py-10 lg:py-[40px]">
-      <div className="px-5 md:px-10 lg:px-[75px]">
+      <div className="px-gutter">
         <SectionHeader label="PORTFOLIO" number="04" />
 
         {/* Heading area */}
         <div className="relative mt-8 lg:mt-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 lg:gap-0 mb-10 lg:mb-16">
           <h2
-            className="text-[12vw] lg:text-[216.4px] leading-[0.839] text-black select-none"
+            className="text-[clamp(56px,12vw,300px)] leading-[0.839] text-black select-none"
             style={{
-              fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif',
-              letterSpacing: '-0.01em'
+              fontFamily: 'var(--font-manrope), "Manrope", sans-serif',
+              letterSpacing: '-0.012em'
             }}
           >
             OUR<br />WORK
@@ -52,7 +52,7 @@ export default function Portfolio() {
 
           <TextBlockAnimation className="max-w-[282px]" stagger={0.05}>
             <p
-              className="font-normal text-[20px] text-black leading-normal text-left"
+              className="font-normal text-[clamp(16px,1.35vw,20px)] text-black leading-normal text-left"
               style={{ fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif', letterSpacing: '-0.03em' }}
             >
               Looks like a production circus happened here. Plot twist : It didn&apos;t.
