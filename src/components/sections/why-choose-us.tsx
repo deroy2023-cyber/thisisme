@@ -14,7 +14,14 @@ interface FeatureCard {
 // cannot drift apart.
 const CARD_H = 440;
 const CARD_GAP = 240; // matches gap-60 (15rem) on the card column
-const HOLD_VH = 40;
+// The last card's motionless hold. 40 was ~400px at a 1000px viewport — about
+// two wheel notches of a still card, which on top of the runway that used to
+// follow it read as the card being stuck rather than as a deliberate beat.
+const HOLD_VH = 20;
+// Top padding on the content column (pt-[60dvh]). Named because the section
+// height below has to include it: the column starts this far down, so a height
+// that omits it ends the section before the last card has finished.
+const COL_PAD_VH = 60;
 
 const FEATURES: FeatureCard[] = [
   {
@@ -140,17 +147,31 @@ export default function WhyChooseUs() {
       ref={containerRef}
       id="why-choose-us"
       className="relative w-full bg-black"
-      // 100vh sticky video + the content column's own runway. Derived rather
-      // than a fixed vh so the section ends just after the last card releases,
-      // with no dead black gap before the footer.
+      /* The section must end exactly where the card column ends, or the last
+         card scrolls off the top and the user keeps scrolling against a
+         motionless background video — which is what "the last card gets
+         stuck" actually was. ~500px of it at a 1000px viewport.
+
+         The column's bottom edge, measured from the section's top:
+
+             COL_PAD_VH  the pt-[60dvh] the column opens with
+           + cards       CARD_H each, CARD_GAP between
+           + HOLD_VH     the last card's sticky release runway
+
+         Plus the leading 100dvh for the sticky video — which the column's own
+         -mt-[100dvh] cancels, so it is what makes the two coordinate systems
+         line up rather than extra height.
+
+         Nothing trails that sum. The previous +10dvh had nothing cancelling
+         it and was pure dead scroll. */
       style={{
-        height: `calc(100vh + 60vh + ${
+        height: `calc(100dvh + ${COL_PAD_VH}dvh + ${
           CARD_H * FEATURES.length + CARD_GAP * (FEATURES.length - 1)
-        }px + ${HOLD_VH}vh + 10vh)`,
+        }px + ${HOLD_VH}dvh)`,
       }}
     >
       {/* Sticky Background Video & Title */}
-      <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
+      <div className="sticky top-0 left-0 w-full h-dvh overflow-hidden">
         <video
           src="https://res.cloudinary.com/dcmbfe9at/video/upload/q_auto/f_auto/v1778690282/why-us_irb2hb.mp4"
           autoPlay
@@ -179,7 +200,7 @@ export default function WhyChooseUs() {
             departure is now purely positional. */}
         <motion.div
           ref={overlayRef}
-          className="absolute top-0 left-0 w-full px-5 md:px-10 lg:px-[75px] pt-12 lg:pt-[62px] z-20 pointer-events-none"
+          className="absolute top-0 left-0 w-full px-gutter pt-12 lg:pt-[62px] z-20 pointer-events-none"
           style={{ y: titleY }}
         >
           <motion.div style={{ pointerEvents: overlayPointer }}>
@@ -188,8 +209,8 @@ export default function WhyChooseUs() {
           <h2
             className="mt-2 text-[clamp(40px,10vw,121px)] leading-[0.839]"
             style={{
-              fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif',
-              letterSpacing: '-0.01em',
+              fontFamily: 'var(--font-manrope), "Manrope", sans-serif',
+              letterSpacing: '-0.012em',
               color: '#0E0E0E',
             }}
           >
@@ -200,8 +221,14 @@ export default function WhyChooseUs() {
 
       {/* Content container that scrolls over the sticky video. The last card's
           hold runway lives in its own wrapper, not in trailing padding here. */}
-      <div className="relative z-20 w-full -mt-[100vh] pt-[60vh]">
-        <div className="px-5 md:px-10 lg:px-[75px]">
+      {/* pt comes from COL_PAD_VH rather than a literal: the section height
+          above includes this same padding, and a drift between the two puts
+          dead scroll back at the end of the section. */}
+      <div
+        className="relative z-20 w-full -mt-[100dvh]"
+        style={{ paddingTop: `${COL_PAD_VH}dvh` }}
+      >
+        <div className="px-gutter">
           {/* Cards alternating left and right */}
           <div className="flex flex-col gap-60 max-w-[1300px] w-full mx-auto items-center">
             {FEATURES.map((feature, i) => (
@@ -265,11 +292,14 @@ function FeatureCard({
     return (
       <div
         className={`w-[80%] md:w-[30%] ${isRight ? "md:self-end" : "md:self-start"}`}
-        style={{ minHeight: `calc(${CARD_H}px + ${HOLD_VH}vh)` }}
+        style={{ minHeight: `calc(${CARD_H}px + ${HOLD_VH}dvh)` }}
       >
         <div
           className="sticky"
-          style={{ top: `calc(50vh - ${CARD_H / 2}px)` }}
+          // dvh, not vh: the wrapper's runway below is dvh, and mixing the two
+          // makes the pin offset and its release runway disagree as the mobile
+          // URL bar collapses.
+          style={{ top: `calc(50dvh - ${CARD_H / 2}px)` }}
         >
           {card}
         </div>

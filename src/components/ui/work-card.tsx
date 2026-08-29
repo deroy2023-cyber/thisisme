@@ -52,7 +52,7 @@ export default function WorkCard({ title, image, tags, link }: Project) {
   return (
     <motion.div
       variants={cardVariants}
-      className="relative w-full aspect-[634/511] overflow-hidden group"
+      className="relative w-full aspect-[4/3] md:aspect-[634/511] overflow-hidden group"
     >
       <a
         href={link}
@@ -69,7 +69,7 @@ export default function WorkCard({ title, image, tags, link }: Project) {
             alt={title}
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
+            className="object-cover transition-transform duration-700 hover-hover:group-hover:scale-105"
           />
         </motion.div>
 
@@ -78,13 +78,11 @@ export default function WorkCard({ title, image, tags, link }: Project) {
           {/* Top row */}
           <div className="flex items-start justify-between">
             <span
+              className="text-[clamp(15px,1.5vw,21.36px)] leading-[1.25] text-white"
               style={{
                 fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif',
                 fontWeight: 300,
-                fontSize: '21.36px',
-                lineHeight: '38.4px',
                 letterSpacing: '-0.51px',
-                color: 'white',
               }}
             >
               {title}

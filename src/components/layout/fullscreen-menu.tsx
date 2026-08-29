@@ -8,6 +8,7 @@ import { SplitText } from "gsap/SplitText";
 import { CustomEase } from "gsap/CustomEase";
 import { useGSAP } from "@gsap/react";
 import { useLenis } from "lenis/react";
+import { MENU_DESKTOP_MQ } from "@/src/lib/breakpoints";
 
 gsap.registerPlugin(SplitText, CustomEase, useGSAP);
 
@@ -178,13 +179,20 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
 
   /* The video panel is `hidden` below md (the reference has no video on mobile),
      but `hidden` only stops it painting — the load()/play() calls below would
-     still pull the clip over the network on a phone. Matching the navbar's
-     breakpoint query (see navbar.tsx) rather than inventing a second token.
+     still pull the clip over the network on a phone.
+
+     This MUST be the same condition as the `wide:` variant that renders the
+     element (MENU_DESKTOP_MQ, shared from src/lib/breakpoints.ts), not the bare
+     min-width:768px it used to be. The video is `wide:block hidden`, so on a
+     landscape phone — wide enough for md, too short for the desktop layout —
+     the old width-only query returned true for an element that is never
+     displayed, and pulled the clip over a mobile connection to render nothing.
+
      Read at call time, not held in state: both effects already re-run on
      `isOpen`, so a resize is picked up on the next open. */
   const isVideoEnabled = () =>
     typeof window !== "undefined" &&
-    window.matchMedia("(min-width: 768px)").matches;
+    window.matchMedia(MENU_DESKTOP_MQ).matches;
 
   /* The video is `preload="none"`, so it has no data until the menu first opens.
      Play/pause with the overlay rather than letting a hidden element decode. */
@@ -340,10 +348,19 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
          below anchor to `inset-menu-gutter` rather than to arbitrary
          percentages, so every edge shares one source of truth. The top padding
          additionally clears the logo, hence the calc(). */
+      /* overflow-y-auto, not overflow-hidden: below `wide:` this is a flex
+         column whose intrinsic height (~793px at 390px wide) exceeds a short
+         viewport. With the old overflow-hidden the excess was not merely
+         off-screen but UNREACHABLE — Lenis is stopped while the menu is open,
+         and data-lenis-prevent exempts this subtree from Lenis without giving
+         it a scroller of its own. On a 360x640 phone the wordmark and the
+         socials were simply gone. overscroll-contain stops a rubber-band at
+         either end chaining to the locked page behind. At `wide:` the layout is
+         absolutely positioned and never overflows, so this is inert there. */
       className="fixed inset-0 z-[105] bg-[#0E0E0E] text-off-white pointer-events-none
-        flex flex-col md:block
+        flex flex-col wide:block
         p-menu-gutter
-        overflow-hidden"
+        overflow-y-auto overscroll-contain wide:overflow-hidden"
       style={{ clipPath: MENU_HIDDEN }}
     >
       {/* Logo, pinned to the top-left gutter. The menu gets its own mark rather
@@ -354,7 +371,7 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
       {/* Below md this row is the reference's top bar: logo left, and space
           reserved at the right for the navbar's circular close button, which is
           `fixed` at z-[110] and so paints over this row rather than sitting in
-          it. `md:contents` dissolves the row at desktop so the logo keeps the
+          it. `wide:contents` dissolves the row at desktop so the logo keeps the
           absolute placement it has always had. */}
       <div
         /* Below md the logo must line up with the navbar's circular close
@@ -373,10 +390,10 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
            wordmark below, Tailwind's translate-* compiles to the standalone
            `translate` property and the browser composes it with GSAP's
            `transform`. Nothing tweens this row today, but the rule holds. */
-        className="flex items-center justify-between pr-[56px] md:contents md:pr-0
-          max-md:mt-[calc(54px-var(--spacing-menu-gutter))]"
+        className="flex items-center justify-between pr-[56px] wide:contents wide:pr-0
+          max-wide:mt-[calc(54px-var(--spacing-menu-gutter))]"
       >
-        <div className="md:absolute md:top-menu-gutter md:left-menu-gutter">
+        <div className="wide:absolute wide:top-menu-gutter wide:left-menu-gutter">
           <Image
             src="/images/menu-logo.webp"
             alt="ATWO Studios"
@@ -394,40 +411,40 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
           why-choose-us, services, section-header, footer) — same face as the
           "OUR WORK" heading in portfolio.tsx. */}
       <nav
-        className="flex flex-col md:absolute md:left-[21%]
-          md:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]
-          max-md:mt-[12vh]
+        className="flex flex-col wide:absolute wide:left-[21%]
+          wide:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]
+          max-wide:mt-[clamp(16px,12dvh,96px)]
           text-[clamp(40px,11vw,56px)] leading-[1.08]
-          md:text-[clamp(23px,3.4vw,44px)] md:leading-[1.25] font-light"
+          wide:text-[clamp(23px,3.4vw,44px)] wide:leading-[1.25] font-light"
         style={{ fontFamily: 'var(--font-dm-sans), sans-serif' }}
       >
         {children}
       </nav>
 
-      {/* The reference's hairline rule under the links. `md:hidden` keeps it out
+      {/* The reference's hairline rule under the links. `wide:hidden` keeps it out
           of the desktop composition entirely, where the absolutely-placed blocks
           leave no band for it. `menu-reveal` on the inner element (with an
           overflow-hidden parent) makes it wipe in like every other block —
           see the gsap.set() note above for why the hidden state is not a class. */}
-      <div className="md:hidden overflow-hidden mt-[6vh] mb-8">
+      <div className="wide:hidden overflow-hidden mt-[clamp(12px,6dvh,48px)] mb-[clamp(12px,4dvh,32px)]">
         <div className="menu-reveal h-px w-full bg-off-white/15" />
       </div>
 
       {/* ── Info + socials — two columns in the right-hand third ───
-          `md:contents` dissolves this flex row at desktop so each column can be
+          `wide:contents` dissolves this flex row at desktop so each column can be
           absolutely placed, while the shared type styles still cascade down.
           Top-aligned to the same baseline as the nav links column (see the
           `<nav>` above) so both sit at a matching top margin. */}
       <div
-        className="flex md:contents
-          max-md:justify-between max-md:gap-3
-          text-[clamp(15px,4.2vw,17px)] md:text-[11px]
-          uppercase tracking-[0.12em] leading-[1.6]"
-        style={{ fontFamily: '"Coolvetica Regular", Coolvetica, sans-serif' }}
+        className="flex wide:contents
+          max-wide:justify-between max-wide:gap-3
+          text-[clamp(15px,4.2vw,17px)] wide:text-[11px]
+          uppercase tracking-[0.096em] leading-[1.6]"
+        style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif' }}
       >
         <div
-          className="flex flex-col md:absolute md:left-[67%]
-            md:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]"
+          className="flex flex-col wide:absolute wide:left-[67%]
+            wide:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]"
         >
           {INFO_COLUMN.map((item) => (
             <InfoLine key={item.label} {...item} />
@@ -436,8 +453,8 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
         {/* right-menu-gutter as well as left- so the longest handle wraps at
             the gutter instead of running under the viewport edge. */}
         <div
-          className="flex flex-col max-md:text-right md:absolute md:left-[84%] md:right-menu-gutter
-            md:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]"
+          className="flex flex-col max-wide:text-right wide:absolute wide:left-[84%] wide:right-menu-gutter
+            wide:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]"
         >
           {SOCIAL_COLUMN.map((item) => (
             <InfoLine key={item.label} {...item} />
@@ -458,15 +475,29 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
           which the browser COMPOSES with GSAP's `transform` rather than letting
           one win. A margin touches no transform, so the chars' rotateY/scale/y
           tween is untouched. em, not px, so it scales with the clamp()'d
-          font-size below ~1308px instead of drifting. */}
+          font-size below ~1308px instead of drifting.
+
+          whitespace-nowrap is load-bearing, not cosmetic. This box is only as
+          wide as the band between `left-[58%]` and the right gutter -- 765px at
+          1899px viewport -- while "ATWO" at 476px measures 565px in Coolvetica
+          Heavy Compressed but ~1392px in the fallback sans. So for as long as
+          the webfont is unavailable (still loading under font-display:swap,
+          blocked by an extension, cold cache, offline) the mark wraps to two
+          lines, and two 0.78 line boxes are 743px tall -- it escapes the top
+          and bottom of the viewport and buries the info/social columns.
+          Measured: the h1 goes from 371px tall at y=516 to 1114px at y=-227.
+          hero.tsx:162 already pairs this same face with whitespace-nowrap for
+          exactly this reason. Horizontal overflow that nowrap leaves behind is
+          clipped by the root's wide:overflow-hidden, and the mark is meant to
+          bleed off the right edge anyway. */}
       <h1
         ref={headerRef}
-        className="max-md:flex-1 max-md:content-center md:absolute md:left-[58%] md:right-menu-gutter md:bottom-menu-gutter
+        className="max-wide:flex-1 max-wide:content-center wide:absolute wide:left-[58%] wide:right-menu-gutter wide:bottom-menu-gutter
           font-coolvetica-heavy select-none
-          text-[min(73vw,34vh)] md:text-[clamp(101px,36.4vw,476px)]
-          leading-[0.78] tracking-normal
-          max-md:text-center md:text-right
-          md:mb-[-0.021em]"
+          text-[min(73vw,34vh)] wide:text-[clamp(101px,36.4vw,476px)]
+          leading-[0.78] tracking-normal whitespace-nowrap
+          max-wide:text-center wide:text-right
+          wide:mb-[-0.021em]"
         style={{ perspective: 800 }}
       >
         {MENU_WORDMARK}
@@ -474,8 +505,8 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
 
       {/* ── Video — small, bottom-left, in a lighter-grey frame ──── */}
       <div
-        className="menu-video-wrapper hidden md:block md:absolute md:left-menu-gutter md:bottom-menu-gutter
-          w-full md:w-[clamp(305px,38vw,510px)] shrink-0"
+        className="menu-video-wrapper hidden wide:block wide:absolute wide:left-menu-gutter wide:bottom-menu-gutter
+          w-full wide:w-[clamp(305px,38vw,510px)] shrink-0"
         style={{ clipPath: VIDEO_HIDDEN }}
       >
         {/* The visible padded frame from the reference — square corners. */}

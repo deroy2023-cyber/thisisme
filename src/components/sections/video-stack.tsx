@@ -86,7 +86,16 @@ const LONGEST_TITLE = SLIDES.reduce(
  *  title down to the space actually available (see the title block below).
  *  Approximate on purpose: it only has to avoid overflow, not be exact, and
  *  the mask's overflow-hidden is the hard backstop if it's ever off. */
-const CHAR_WIDTH_RATIO = 0.5;
+const CHAR_WIDTH_RATIO = 0.31;
+
+/** Horizontal padding on the title container, which MUST equal the px-4 class
+ *  on that element. It is subtracted from the text budget below. Previously it
+ *  was not: marginBoxW subtracted only CARD_CLEARANCE_PX, then px-4 ate another
+ *  32px out of the same box, so the title was sized for 32px more room than it
+ *  had and clipped by exactly that at every 16:9 desktop from 1280x720 through
+ *  1920x1080. The comment on the container claimed the padding was accounted
+ *  for; the arithmetic did not do it. */
+const TITLE_PAD_X = 32;
 
 /** Pure breathing room between the title/year text and the card — NOT the
  *  site's usual side margin. The site's px-5/md:px-10/lg:px-[75px] scale was
@@ -341,10 +350,24 @@ export default function VideoStack() {
   // existed — "as big as looks good" tops out there. Floor of 14 is the
   // absolute-worst-case backstop; the mask's overflow-hidden is the true
   // guarantee against ever touching the card, in case this estimate runs long.
+  // Subtract the container's own px-4 before sizing: `width: marginBoxW` is
+  // the BORDER box, and px-4 comes out of it, so the text only ever had
+  // marginBoxW - TITLE_PAD_X to live in.
+  const titleTextBoxW = Math.max(0, marginBoxW - TITLE_PAD_X);
   const titleFontPx = Math.min(
     44,
-    Math.max(14, marginBoxW / (LONGEST_TITLE.length * CHAR_WIDTH_RATIO)),
+    Math.max(11, titleTextBoxW / (LONGEST_TITLE.length * CHAR_WIDTH_RATIO)),
   );
+  // Below the floor the box is genuinely too narrow for the longest title even
+  // at 11px, and no font size rescues it -- geometry() is height-bound at these
+  // sizes, so the card eats almost the whole width (48px of text room at
+  // 1440x900 and 1024x600 for a title needing 51px). Rendering it anyway put an
+  // illegible, clipped sliver beside the card. Hiding the side rails there is
+  // the honest outcome: the card itself still carries the work, and the layout
+  // reads as deliberate rather than broken.
+  const MIN_LEGIBLE_TITLE_PX = 12;
+  const showSideTitles =
+    titleTextBoxW >= LONGEST_TITLE.length * CHAR_WIDTH_RATIO * MIN_LEGIBLE_TITLE_PX;
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -901,11 +924,11 @@ export default function VideoStack() {
     <section
       ref={sectionRef}
       id="videos"
-      className="relative w-full bg-black h-[200vh]"
+      className="relative w-full bg-black h-[200dvh]"
     >
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="sticky top-0 left-0 h-screen w-full">
+        <div className="sticky top-0 left-0 h-dvh w-full">
           <Image
             src="/images/project-bg.webp"
             alt="Projects atmosphere"
@@ -922,13 +945,19 @@ export default function VideoStack() {
           clipping ancestor. The overflow-hidden here is also what makes hover
           a sound visibility test: it clips hit-testing, so an off-screen card
           cannot fire pointerenter. */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
+      <div className="sticky top-0 h-dvh w-full overflow-hidden">
         {/* Stage — owns the perspective the deck recedes into */}
         <div
           ref={stageRef}
           className="absolute inset-0"
           style={{
-            perspective: 1200,
+            // Ratio-scaled, not a flat 1200px. zStep is already cardW * 0.11,
+            // so with a fixed perspective the back card's scale swung 0.669 to
+            // 0.755 across the card-width range and the recession read visibly
+            // deeper on a wide screen. Tying it to cardW makes the perspective/
+            // card-width ratio constant, which is what Z_STEP_RATIO was
+            // introduced to achieve for the z-spacing. 1200/1350 = 0.889.
+            perspective: Math.round(size.cardW * 0.889),
             // 50% 50%, matching the now-centred front card, so the recession
             // stays symmetric about it rather than leaning downward-away.
             perspectiveOrigin: "50% 50%",
@@ -1040,7 +1069,7 @@ export default function VideoStack() {
             so a shrink-to-fit container collapses the mask to 0px. */}
         <div
           className="pointer-events-none absolute left-0 top-1/2 z-20 -translate-y-1/2 px-4 text-right"
-          style={{ width: marginBoxW }}
+          style={{ width: marginBoxW, display: showSideTitles ? undefined : "none" }}
         >
           {/* Mask height is a FIXED pixel budget derived from titleFontPx, not an
               em-relative one — leading-tight clipped this font's glyphs at
@@ -1087,7 +1116,10 @@ export default function VideoStack() {
             was never part of the SplitText char animation. */}
         <div
           className="pointer-events-none absolute right-0 top-1/2 z-20 -translate-y-1/2 px-4"
-          style={{ width: marginBoxW }}
+          // Hidden with the title: a lone year floating beside the card, with
+          // its opposite rail gone, reads as a rendering fault rather than a
+          // choice. The pair is the design element, not either half.
+          style={{ width: marginBoxW, display: showSideTitles ? undefined : "none" }}
         >
           <span
             className="block text-left text-lg text-medium-gray"
