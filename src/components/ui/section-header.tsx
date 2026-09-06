@@ -23,8 +23,8 @@ export default function SectionHeader({ label, number, dark = false, color, soli
   const inner = (
     <>
       <div className="flex justify-between items-baseline pb-1">
-        <span className={`text-[clamp(13px,1.3vw,18px)] uppercase min-w-0 ${textColor}`} style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif', letterSpacing: '-0.02em', color }}>{label}</span>
-        <span className={`text-[clamp(13px,1.3vw,18px)] uppercase min-w-0 ${textColor}`} style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif', letterSpacing: '-0.02em', color }}>({number.replace(/[()]/g, '')})</span>
+        <span className={`text-[clamp(13px,1.3vw,18px)] 2xl:text-[clamp(18px,1.17vw,26px)] uppercase min-w-0 ${textColor}`} style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif', letterSpacing: '-0.02em', color }}>{label}</span>
+        <span className={`text-[clamp(13px,1.3vw,18px)] 2xl:text-[clamp(18px,1.17vw,26px)] uppercase min-w-0 ${textColor}`} style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif', letterSpacing: '-0.02em', color }}>({number.replace(/[()]/g, '')})</span>
       </div>
       <div className={`w-full h-px ${lineColor}`} style={{ backgroundColor: color }} />
     </>

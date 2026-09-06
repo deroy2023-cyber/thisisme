@@ -12,6 +12,11 @@ export type TextRollProps = {
     getEnterDelay?: (index: number) => number;
     getExitDelay?: (index: number) => number;
     className?: string;
+    /** Classes for the RESTING layer (the one visible before hover). Exists so a
+     *  consumer can hide one of the two layers: nav-links.tsx renders TextRoll
+     *  twice per label — once blended for the resting text, once unblended for
+     *  the red hover text — and each copy hides the layer it does not own. */
+    enterClassName?: string;
     exitClassName?: string;
     /** Drives the roll. Both layers have a defined resting position in BOTH
      *  states, so this component stays mounted and animates in either direction
@@ -44,6 +49,7 @@ export function TextRoll({
     getEnterDelay = (i) => i * 0.025,
     getExitDelay = (i) => i * 0.025 + 0.05,
     className,
+    enterClassName = '',
     exitClassName = 'text-[#D60000] mix-blend-color-burn',
     isHovered = false,
     transition = { ease: 'easeIn' },
@@ -87,7 +93,7 @@ export function TextRoll({
                         (Tried, reverted.) The same goes for the very long
                         perspective above. */}
                     <motion.span
-                        className='absolute inline-block [backface-visibility:hidden] [transform-origin:50%_25%]'
+                        className={`absolute inline-block [backface-visibility:hidden] [transform-origin:50%_25%] ${enterClassName}`}
                         initial={variants?.enter?.initial ?? defaultVariants.enter.initial}
                         animate={variants?.enter?.animate ?? defaultVariants.enter.animate}
                         /* Stagger only on the way IN. The per-letter delay is

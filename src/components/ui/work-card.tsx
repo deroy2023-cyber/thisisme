@@ -74,11 +74,11 @@ export default function WorkCard({ title, image, tags, link }: Project) {
         </motion.div>
 
         {/* Overlay content */}
-        <div className="absolute inset-0 flex flex-col justify-between p-5 lg:p-[30px]">
+        <div className="absolute inset-0 flex flex-col justify-between p-5 lg:p-[30px] 2xl:p-[clamp(30px,1.953vw,44px)]">
           {/* Top row */}
           <div className="flex items-start justify-between">
             <span
-              className="text-[clamp(15px,1.5vw,21.36px)] leading-[1.25] text-white"
+              className="text-[clamp(15px,1.5vw,21.36px)] 2xl:text-[clamp(21.36px,1.39vw,32px)] leading-[1.25] text-white"
               style={{
                 fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif',
                 fontWeight: 300,
@@ -87,7 +87,7 @@ export default function WorkCard({ title, image, tags, link }: Project) {
             >
               {title}
             </span>
-            <span className="font-coolvetica text-white text-base">✦</span>
+            <span className="font-coolvetica text-white text-base 2xl:text-[clamp(16px,1.042vw,24px)]">✦</span>
           </div>
 
           {/* Bottom tags */}

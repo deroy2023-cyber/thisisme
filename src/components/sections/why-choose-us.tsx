@@ -9,15 +9,21 @@ interface FeatureCard {
   description: string;
 }
 
-// Card height, the gap between cards, and the last card's hold runway. These
+// Card height, the gap between cards, and the tail below the last one. These
 // drive both the rendered styles and the section's height calc, so the two
 // cannot drift apart.
 const CARD_H = 440;
 const CARD_GAP = 240; // matches gap-60 (15rem) on the card column
-// The last card's motionless hold. 40 was ~400px at a 1000px viewport — about
-// two wheel notches of a still card, which on top of the runway that used to
-// follow it read as the card being stuck rather than as a deliberate beat.
-const HOLD_VH = 20;
+// Breathing room under the last card so it does not butt into the footer.
+//
+// This replaces a sticky pin that used to hold the last card motionless mid-
+// viewport for 20dvh of scrolling. That hold had already been cut once (40 →
+// 20) for reading as stuck, and still did: a still card under a turning wheel
+// reads as a stall, not as a beat. The card is now static on the plane like
+// the other three, and this tail is ordinary content height the card keeps
+// moving through — not a hold. Keep it small; flush (0) is fine, a pause is
+// not.
+const TAIL_PX = 120;
 // Top padding on the content column (pt-[60dvh]). Named because the section
 // height below has to include it: the column starts this far down, so a height
 // that omits it ends the section before the last card has finished.
@@ -69,7 +75,7 @@ export default function WhyChooseUs() {
     offset: ['start start', 'end end'],
   });
   // The fade cut-off cannot be a hardcoded fraction. This section is several
-  // thousand px tall — its height is derived from CARD_H/CARD_GAP/HOLD_VH and
+  // thousand px tall — its height is derived from CARD_H/CARD_GAP/TAIL_PX and
   // grows with FEATURES — so any fixed fraction of scrollYProgress means a
   // different, and much longer, amount of real scrolling than it reads as. A
   // flat 0.22 was ~684px at a 1000px viewport: several scroll gestures, with the
@@ -80,7 +86,8 @@ export default function WhyChooseUs() {
   // tall the card runway is or how large the window gets.
   const [fadeEnd, setFadeEnd] = useState(0.08);
   // How far the overlay must travel to clear the top of the frame. Measured, not
-  // guessed: the heading is clamp(40px,10vw,121px) and the BENEFITS row sits above
+  // guessed: the heading is clamp(40px,10vw,121px) (plus a 2xl: ramp above
+  // 1536px) and the BENEFITS row sits above
   // it, so a fixed nudge leaves the block dimming in place instead of departing.
   const [liftPx, setLiftPx] = useState(240);
   useEffect(() => {
@@ -156,7 +163,7 @@ export default function WhyChooseUs() {
 
              COL_PAD_VH  the pt-[60dvh] the column opens with
            + cards       CARD_H each, CARD_GAP between
-           + HOLD_VH     the last card's sticky release runway
+           + TAIL_PX     breathing room under the last card
 
          Plus the leading 100dvh for the sticky video — which the column's own
          -mt-[100dvh] cancels, so it is what makes the two coordinate systems
@@ -167,7 +174,7 @@ export default function WhyChooseUs() {
       style={{
         height: `calc(100dvh + ${COL_PAD_VH}dvh + ${
           CARD_H * FEATURES.length + CARD_GAP * (FEATURES.length - 1)
-        }px + ${HOLD_VH}dvh)`,
+        }px + ${TAIL_PX}px)`,
       }}
     >
       {/* Sticky Background Video & Title */}
@@ -207,7 +214,7 @@ export default function WhyChooseUs() {
             <SectionHeader label="BENEFITS" number="05" color="#0E0E0E" solid />
           </motion.div>
           <h2
-            className="mt-2 text-[clamp(40px,10vw,121px)] leading-[0.839]"
+            className="mt-2 text-[clamp(40px,10vw,121px)] 2xl:text-[clamp(121px,7.88vw,215px)] leading-[0.839]"
             style={{
               fontFamily: 'var(--font-manrope), "Manrope", sans-serif',
               letterSpacing: '-0.012em',
@@ -219,25 +226,22 @@ export default function WhyChooseUs() {
         </motion.div>
       </div>
 
-      {/* Content container that scrolls over the sticky video. The last card's
-          hold runway lives in its own wrapper, not in trailing padding here. */}
-      {/* pt comes from COL_PAD_VH rather than a literal: the section height
-          above includes this same padding, and a drift between the two puts
-          dead scroll back at the end of the section. */}
+      {/* Content container that scrolls over the sticky video.
+
+          Both pads come from constants rather than literals: the section
+          height above includes this same padding at both ends, and a drift
+          between the two puts dead scroll back at the end of the section.
+          pb is the tail under the last card — plain content height the card
+          scrolls through, not a hold. */}
       <div
         className="relative z-20 w-full -mt-[100dvh]"
-        style={{ paddingTop: `${COL_PAD_VH}dvh` }}
+        style={{ paddingTop: `${COL_PAD_VH}dvh`, paddingBottom: `${TAIL_PX}px` }}
       >
         <div className="px-gutter">
           {/* Cards alternating left and right */}
-          <div className="flex flex-col gap-60 max-w-[1300px] w-full mx-auto items-center">
+          <div className="flex flex-col gap-60 max-w-[clamp(1300px,90.3vw,2312px)] w-full mx-auto items-center">
             {FEATURES.map((feature, i) => (
-              <FeatureCard
-                key={feature.title}
-                feature={feature}
-                i={i}
-                isLast={i === FEATURES.length - 1}
-              />
+              <FeatureCard key={feature.title} feature={feature} i={i} />
             ))}
           </div>
         </div>
@@ -246,15 +250,7 @@ export default function WhyChooseUs() {
   );
 }
 
-function FeatureCard({
-  feature,
-  i,
-  isLast,
-}: {
-  feature: FeatureCard;
-  i: number;
-  isLast: boolean;
-}) {
+function FeatureCard({ feature, i }: { feature: FeatureCard; i: number }) {
   // Cards sit at fixed positions on the plane. Scroll moves the window over
   // them; it does not move them — no entrance, no exit, no slide, no rotation.
   const isRight = i % 2 !== 1;
@@ -265,11 +261,11 @@ function FeatureCard({
       style={{ minHeight: CARD_H }}
     >
       <div className="flex gap-4 items-center pt-2">
-        <span className="font-coolvetica text-[40px] leading-none text-white">
+        <span className="font-coolvetica text-[40px] 2xl:text-[clamp(40px,2.604vw,56px)] leading-none text-white">
           ✦
         </span>
         <h3
-          className="font-dm-9pt text-[clamp(22px,2vw,28px)] leading-tight tracking-normal text-white uppercase"
+          className="font-dm-9pt text-[clamp(22px,2vw,28px)] 2xl:text-[clamp(28px,1.82vw,40px)] leading-tight tracking-normal text-white uppercase"
           style={{ fontWeight: 550 }}
         >
           {feature.title}
@@ -284,29 +280,9 @@ function FeatureCard({
     </div>
   );
 
-  // The final card pins centred, holds for HOLD_VH of scroll, then releases.
-  // The hold has to come from this wrapper's own height: a sticky element whose
-  // containing block ends where it does has no release runway and stays pinned
-  // over whatever follows. Padding on an ancestor cannot supply it.
-  if (isLast) {
-    return (
-      <div
-        className={`w-[80%] md:w-[30%] ${isRight ? "md:self-end" : "md:self-start"}`}
-        style={{ minHeight: `calc(${CARD_H}px + ${HOLD_VH}dvh)` }}
-      >
-        <div
-          className="sticky"
-          // dvh, not vh: the wrapper's runway below is dvh, and mixing the two
-          // makes the pin offset and its release runway disagree as the mobile
-          // URL bar collapses.
-          style={{ top: `calc(50dvh - ${CARD_H / 2}px)` }}
-        >
-          {card}
-        </div>
-      </div>
-    );
-  }
-
+  // Every card renders the same way, the last one included. It used to pin
+  // sticky and hold motionless mid-viewport before releasing, which is what
+  // read as "the last card gets stuck".
   return (
     <div
       className={`w-[80%] md:w-[30%] ${isRight ? "md:self-end" : "md:self-start"}`}

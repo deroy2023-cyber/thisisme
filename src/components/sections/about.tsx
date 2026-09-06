@@ -19,13 +19,22 @@ export default function About() {
      synchronous layout each time). matchMedia fires only on the crossing. */
   const isDesktop = useMediaQuery(mqUp(BP.lg));
 
+  /* h-auto below lg. The section used to be h-dvh at every width, but on
+     mobile the stacked content (header + h2 + paragraph + image) measures
+     less than 100dvh on a tall phone, and flex-1 on the wrapper below
+     collected that surplus as dead white space beneath the image — which
+     Services, opening flush with no top padding, read as a large gap. */
   return (
-    <section id="about-us" className="relative w-full h-dvh flex flex-col bg-white overflow-hidden">
+    <section id="about-us" className="relative w-full h-auto lg:h-dvh flex flex-col bg-white overflow-hidden">
       <div className="px-gutter pt-12 lg:pt-[48px] relative z-10">
         <SectionHeader label="ABOUT US" number="02" />
       </div>
 
-      <div className="flex flex-col lg:flex-row w-full flex-1 pb-12 lg:pb-0">
+      {/* flex-1 is gated to lg alongside the height it depends on: with h-auto
+          there is no surplus to distribute, and on mobile it only ever pushed
+          the image down. pb-12 went with it so the photo's bottom edge meets
+          the Services panel flush. */}
+      <div className="flex flex-col lg:flex-row w-full lg:flex-1">
         <motion.div
           className="relative lg:absolute lg:right-0 lg:top-0 lg:bottom-0 w-full lg:w-[50%] h-[clamp(280px,55dvh,500px)] lg:h-full order-2 lg:order-none"
           /* Percentage, not a hardcoded -900px. At 900px the travel was longer
@@ -54,17 +63,17 @@ export default function About() {
             1024px sat beneath the photograph, growing to 128px at 2560px.
             lg:pr-[75px] keeps the text clear of the seam rather than ending
             flush against it. */}
-        <div className="relative px-gutter pt-[30px] lg:w-[50%] lg:pr-[75px] order-1 lg:order-none">
+        <div className="relative px-gutter pt-[30px] lg:w-[50%] lg:pr-[75px] 2xl:pr-[clamp(75px,4.883vw,133px)] order-1 lg:order-none">
           <h2
-            className="text-[clamp(44px,9.5vw,160px)] leading-[0.839] text-white relative z-10 mix-blend-difference lg:whitespace-nowrap"
+            className="text-[clamp(44px,9.5vw,243.2px)] leading-[0.839] text-white relative z-10 mix-blend-difference lg:whitespace-nowrap"
             style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif', letterSpacing: '-0.02em' }}
           >
             INSIDE<br />ATWO STUDIOS
           </h2>
 
-          <TextBlockAnimation className="mt-[clamp(32px,6vw,80px)] max-w-[484px]" stagger={0.03}>
+          <TextBlockAnimation className="mt-[clamp(32px,6vw,80px)] max-w-[484px] 2xl:max-w-[clamp(484px,31.51vw,860px)]" stagger={0.03}>
             <p
-              className="font-medium text-[clamp(16px,1.35vw,20px)] text-black leading-[1.25] text-left"
+              className="font-medium text-[clamp(16px,1.35vw,34.56px)] text-black leading-[1.25] text-left"
               style={{ fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif', letterSpacing: '-0.01em' }}
             >
               Ideas run the show. We create ads, films, and brand visuals that look like full productions – minus the rented studios, camera, crews and production chaos. We are less interested in how things are traditionally done and more obsessed with how far an idea can go. The results feel like a real shoot. The Process? Let&apos;s just say it&apos;s unconventional.

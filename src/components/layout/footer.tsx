@@ -166,9 +166,9 @@ export default function Footer() {
         <footer className="relative md:sticky md:top-0 w-full h-auto md:h-dvh flex flex-col justify-between bg-white overflow-hidden">
           <div>
             {/* CTA Section */}
-            <div className="px-5 md:px-10 lg:px-[138px] pt-16 lg:pt-20">
+            <div className="px-5 md:px-10 lg:px-[138px] 2xl:px-[clamp(138px,8.984vw,245px)] pt-16 lg:pt-20">
               <motion.p
-                className="text-[clamp(16px,1.8vw,22px)] text-primary-red max-w-[300px]"
+                className="text-[clamp(16px,1.8vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red max-w-[300px]"
                 style={{
                   fontFamily: REGULAR,
                   lineHeight: "normal",
@@ -185,14 +185,14 @@ export default function Footer() {
 
             {/* Links row */}
             <motion.div
-              className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 items-center px-5 md:px-10 lg:px-34.5 mt-16 lg:mt-20"
+              className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 items-center px-5 md:px-10 lg:px-34.5 2xl:px-[clamp(138px,8.984vw,245px)] mt-16 lg:mt-20"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
               <button
-                className="text-[clamp(14px,3.6vw,22px)] text-primary-red hover:opacity-70 transition-opacity whitespace-nowrap text-center md:text-left"
+                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity whitespace-nowrap text-center md:text-left"
                 style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
                 data-hover
                 onClick={() => setIsBookingOpen(true)}
@@ -201,7 +201,7 @@ export default function Footer() {
               </button>
               <a
                 href="mailto:contact@atwostudios.com"
-                className="text-[clamp(14px,3.6vw,22px)] text-primary-red underline hover:opacity-70 transition-opacity md:text-left"
+                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red underline hover:opacity-70 transition-opacity md:text-left"
                 style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
                 data-hover
               >
@@ -210,7 +210,7 @@ export default function Footer() {
               <a
                 href="https://www.linkedin.com/company/atwo-studios/"
                 target="_blank" rel="noopener noreferrer"
-                className="text-[clamp(14px,3.6vw,22px)] text-primary-red hover:opacity-70 transition-opacity text-center"
+                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity text-center"
                 style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
                 data-hover
               >
@@ -219,7 +219,7 @@ export default function Footer() {
               <a
                 href="https://www.instagram.com/atwo.io?igsh=dWh6Z3I2am10b3U0&utm_source=qr"
                 target="_blank" rel="noopener noreferrer"
-                className="text-[clamp(14px,3.6vw,22px)] text-primary-red hover:opacity-70 transition-opacity text-center md:text-right"
+                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity text-center md:text-right"
                 style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
                 data-hover
               >
@@ -248,7 +248,7 @@ export default function Footer() {
               re-measured KERN_EM but carried the size across unchanged at
               Coolvetica's 38cqw (calibrated against ITS 2.487em), which put
               Manrope at 112.5% of the block and clipped the A and the O. */}
-          <div className="@container relative flex-1 flex items-center justify-center overflow-hidden bg-accent-red mx-5 md:mx-10 lg:mx-[138px]">
+          <div className="@container relative flex-1 flex items-center justify-center overflow-hidden bg-accent-red mx-5 md:mx-10 lg:mx-[138px] 2xl:mx-[clamp(138px,8.984vw,245px)]">
             {/* .letter-mask / .letter-inner are the hero's own primitives
                 (globals.css:145-155). They hard-code line-height 0.85, which the
                 spans would apply to themselves and override the h2's leading —
@@ -288,21 +288,21 @@ export default function Footer() {
           </div>
 
           {/* Bottom bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 px-5 md:px-10 lg:px-[138px] py-8 lg:py-10">
+          <div className="flex flex-wrap items-center justify-between gap-4 px-5 md:px-10 lg:px-[138px] 2xl:px-[clamp(138px,8.984vw,245px)] py-8 lg:py-10">
             <span
-              className="text-[clamp(14px,3.6vw,22px)] text-primary-red"
+              className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
               style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
             >
               TERMS & CONDITIONS
             </span>
             <span
-              className="text-[clamp(14px,3.6vw,22px)] text-primary-red"
+              className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
               style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
             >
               ©2026 ATWO
             </span>
             <span
-              className="text-[clamp(14px,3.6vw,22px)] text-primary-red"
+              className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
               style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
             >
               PRIVACY

@@ -58,11 +58,19 @@
 .font-dm-9pt {
   font-family: var(--font-dm-sans), sans-serif;
   font-weight: 400;
-  /* 17.28px (9pt +40%) is the design size and stays the ceiling. It was a flat
-     value at every viewport, which is the body copy for the whole services
-     accordion and both why-choose-us cards -- at 320px those columns are
-     narrow enough that 17.28px wraps to a very ragged measure. */
-  font-size: clamp(14px, 1.1vw, 17.28px);
+  /* 17.28px (9pt +40%) is the design size. It was a flat value at every
+     viewport, which is the body copy for the whole services accordion and both
+     why-choose-us cards -- at 320px those columns are narrow enough that
+     17.28px wraps to a very ragged measure.
+
+     CEILING RAISED 17.28 -> 28.16px, which deliberately relaxes "17.28 stays
+     the ceiling" above 1571px. The 1.1vw slope is untouched, so 1440 is still
+     15.84px and nothing at or below 1571px moves; the raise only decides what
+     happens on a 2560px monitor, where the old ceiling left this copy at 0.68vw
+     effective and it read as fine print. 28.16 IS 1.1vw at 2560. If the client
+     wants the 9pt design size held literally at all widths, revert this one
+     value -- it is independent of every other change in the 2560 pass. */
+  font-size: clamp(14px, 1.1vw, 28.16px);
   line-height: 1.5;
 }
 
@@ -99,6 +107,38 @@
 @custom-variant wide (@media (min-width: 768px) and (min-height: 440px));
 @custom-variant max-wide (@media not all and (min-width: 768px) and (min-height: 440px));
 
+/* ═══════════════════════════════════════════
+   SCALING ABOVE 1440px -- THE `2xl:` IDIOM
+   ═══════════════════════════════════════════
+
+   Read this before "simplifying" any 2xl:text-[clamp(...)] in this codebase.
+
+   The site froze above ~1600px: every clamp was saturated (footer links at
+   611px, hero taglines at 800px, body copy at 1571px) and the breakpoint ladder
+   ended at lg:. The fix keeps the 1440px render pixel-identical, which splits
+   the clamps in two:
+
+     - Saturating AT OR ABOVE 1440 -> raise the ceiling in place. The vw slope
+       still binds at 1440, so that viewport provably cannot move.
+     - Saturating BELOW 1440 -> the ceiling already binds at 1440, so raising it
+       in place WOULD move the reference. These get a `2xl:` override instead;
+       1536 > 1440, so it cannot apply at 1440 by construction.
+
+   The 2xl: form is always  2xl:text-[clamp(V, Xvw, C)]  where V is today's
+   saturated value and X = V / 15.36. That makes the new ramp pass exactly
+   through V at 1536px, so there is ZERO step at the breakpoint -- it is
+   continuous, not a jump. (15.36 is 1536px expressed in vw units: V/15.36 vw
+   evaluates to V at 1536.) C is the value wanted at 2560.
+
+   REJECTED, do not reinstate: the hinge idiom
+   max(OLD, calc(V + (100vw - 1440px) * k)). It looks like the natural fix and
+   fails for every class-B item here -- to stay inert below 1440 its k must be
+   >= the original vw slope, but k works out around half of it, so the growth
+   term overtakes the original ramp BELOW the saturation point and changes
+   1024/1280 rendering (section-header at 1024 went 13.3 -> 15.0px).
+
+   ═══════════════════════════════════════════ */
+
 @theme {
   /* Fullscreen menu gutter — one token every edge-anchored block in the menu
      references, so the inset is changed in a single place rather than repeated
@@ -111,12 +151,28 @@
      75px forever -- 2%% of a 3840px monitor. Continuous, so there is no dead
      zone above lg and no jump at either breakpoint. The 20/75 endpoints are
      the values that triple already used at its extremes, so nothing moves at
-     360px or at 1875px; only the middle and the far end change. */
-  --spacing-gutter: clamp(20px, 4vw, 75px);
+     360px or at 1875px; only the middle and the far end change.
+
+     Ceiling raised 75px -> 102.4px so the 4vw ramp runs all the way to 2560px
+     instead of freezing at 1875px. 102.4 IS 4vw at 2560, so the slope is
+     untouched and every viewport <=1875px is byte-identical (57.6px at 1440). */
+  --spacing-gutter: clamp(20px, 4vw, 102.4px);
 
   /* The content column cap the hero already used as a literal max-w-[1318px].
-     Named so the sections that had no cap at all can share it. */
-  --spacing-page-max: 1318px;
+     Named so the sections that had no cap at all can share it.
+
+     Now fluid above 1440px. 91.5vw at 1440 is 1317.6px -- BELOW the 1318px
+     floor -- so the floor wins and this is exactly 1318px at every viewport
+     <=1440, with no hinge and no media query. Above that it ramps.
+
+     91.5 is not arbitrary. The hero H1 measures 3.178em (see hero.tsx) at
+     25.5vw, so at 1440 the column/H1 ratio is 1318/(367.2*3.178) = 1.129.
+     Setting the token to 1.129 * 3.178 * 25.5vw = 91.5vw holds that ratio
+     CONSTANT from 1440 through 2560, so the H1 (centred on the full viewport)
+     and the taglines (centred on this column) keep their shared alignment
+     instead of drifting apart on a large monitor. Ceiling 2343 = the value at
+     2560. Changing 25.5vw in hero.tsx means re-deriving this. */
+  --spacing-page-max: clamp(1318px, 91.5vw, 2343px);
 
   --font-coolvetica-heavy: "Coolvetica Heavy Compressed", sans-serif;
   --font-coolvetica-condensed: "Coolvetica Condensed", sans-serif;
@@ -240,6 +296,43 @@
 .letter-inner {
   display: inline-block;
   line-height: 0.85;
+}
+
+/* ═══════════════════════════════════════════
+   NAV LABEL REVEAL MASK
+   ═══════════════════════════════════════════
+
+   Wraps each of the four desktop nav labels so their entrance reads as a wipe up
+   from below rather than a slide across the page. Sits INSIDE the
+   mix-blend-difference wrapper in nav-links.tsx and must stay there: overflow
+   does not create a stacking context, so it is harmless as a descendant of the
+   blend, but as an ANCESTOR of it this would isolate the group and flatten the
+   labels to white.
+
+   The padding/negative-margin pair is the same trick as .letter-mask above and
+   is NOT optional tidying. Coolvetica's ink overshoots its line box, so a bare
+   overflow: hidden shaves the caps off ABOUT US / WORK / SERVICES / CONTACT US
+   the moment they come to rest. (video-stack.tsx hit the same thing and needed
+   TITLE_MASK_RATIO = 1.8; .letter-mask needed 0.18em at line-height .85.) The
+   padding grows the clip rectangle while the equal negative margin holds the
+   line box unchanged — which matters here more than anywhere, because this row's
+   vertical position is aligned against the pill's logo to the pixel.
+
+   0.25em rather than .letter-mask's 0.18em: these labels sit at the default
+   ~1.2 line-height instead of 0.85, and the slack is free.
+
+   Deliberately NO line-height override here (unlike .letter-mask's 0.85) — it
+   would move the labels relative to that logo. */
+.nav-label-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-block: 0.25em;
+  margin-block: -0.25em;
+}
+
+.nav-label-inner {
+  display: inline-block;
 }
 
 /* ═══════════════════════════════════════════
