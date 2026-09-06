@@ -12,8 +12,9 @@ export default function GlassmorphicPill({ label }: GlassmorphicPillProps) {
          card edge and clip against the card's overflow-hidden; max-w + truncate
          bound it to the card instead. */
       className="backdrop-blur-sm bg-white/75 rounded-full text-black underline
-        text-[clamp(11px,1vw,13px)] leading-[1.55] tracking-[-0.18px]
+        text-[clamp(11px,1vw,13px)] 2xl:text-[clamp(13px,0.85vw,18px)] leading-[1.55] tracking-[-0.18px]
         px-[clamp(10px,1.2vw,16px)] py-[clamp(3px,0.5vw,5px)]
+        2xl:px-[clamp(16px,1.042vw,22px)] 2xl:py-[clamp(5px,0.3255vw,7px)]
         inline-block max-w-full truncate align-top"
       style={{
         fontFamily: 'var(--font-dm-sans), "DM Sans", sans-serif',

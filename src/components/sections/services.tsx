@@ -220,7 +220,7 @@ export default function Services() {
                 opacity: panelOpacity,
                 // clamp, not a flat 55px: at 1024px the panel is 512px wide and
                 // 110px of padding left 402px for headings that needed more.
-                padding: "clamp(24px, 3.6vw, 55px)",
+                padding: "clamp(24px, 3.6vw, 92.16px)",
                 // Positively reset rather than merely omit: resizing mobile ->
                 // desktop at runtime would otherwise leave the mobile tween's
                 // inline width/transform stranded and re-collapse the panel.
@@ -289,7 +289,7 @@ export default function Services() {
                  em gap. This also drops the ✦'s inherited line-height from 1.5
                  to 0.9, which is what removed the mobile-only line-box
                  inflation (its box, not its glyph — the star looks unchanged). */
-              className="relative text-left whitespace-nowrap text-[6.8vw] lg:text-[min(3.6vw,66px)] leading-[0.9]"
+              className="relative text-left whitespace-nowrap text-[6.8vw] lg:text-[min(3.6vw,92px)] leading-[0.9]"
               variants={{
                 hidden: { opacity: 0, x: 20 },
                 shown: { opacity: 1, x: 0 },
@@ -341,7 +341,7 @@ export default function Services() {
                 {service.name}
               </span>
               <motion.span
-                className="inline-block text-[clamp(13px,1.4vw,20px)] text-white ml-2 align-super bg-transparent relative -top-[0.18em] cursor-pointer"
+                className="inline-block text-[clamp(13px,1.4vw,20px)] 2xl:text-[clamp(20px,1.30vw,28px)] text-white ml-2 align-super bg-transparent relative -top-[0.18em] cursor-pointer"
                 animate={{
                   rotate: expandedService === service.name ? 90 : 0,
                 }}
@@ -370,8 +370,19 @@ export default function Services() {
                         expansion. Safe to measure immediately: the panel animates
                         height only, and line-splitting depends on width, which the
                         grid has already settled. */}
-                    <div className="grid lg:grid-cols-3 gap-8 justify-between m-4 overflow-hidden">
-                      <div className="col-span-2">
+                    {/* Resets the display-type properties this reveal inherits
+                        from the service ROW (see the row's className above):
+                        `whitespace-nowrap` is set there to keep a name and its ✦
+                        together, but white-space inherits, so every <p> below was
+                        unwrappable and the row's overflow-hidden clipped it at the
+                        panel edge. The row's vw font-size and leading-[0.9] inherit
+                        the same way — 0.9 is sized for the display strut and is far
+                        too tight for body copy that now actually wraps.
+                        `col-span-2` is lg-scoped because below lg this grid is a
+                        single column, and a 2-span item in a 1-column grid makes the
+                        browser imply a second track wider than the container. */}
+                    <div className="grid lg:grid-cols-3 gap-8 justify-between m-4 whitespace-normal text-base leading-normal">
+                      <div className="lg:col-span-2 min-w-0">
                         {service.header && (
                           <TextBlockAnimation
                             blockColor="#FFFFFF"
@@ -398,7 +409,7 @@ export default function Services() {
                           </TextBlockAnimation>
                         )}
                       </div>
-                      <div className="">
+                      <div className="min-w-0">
                         <TextBlockAnimation
                           blockColor="#FFFFFF"
                           animateOnScroll={false}

@@ -3,17 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
-import { useLenis } from 'lenis/react';
-import { TextRoll } from '@/src/components/ui/text-roll';
-import { useHoverState } from '@/src/components/ui/use-hover-state';
 import FullscreenMenu from '@/src/components/layout/fullscreen-menu';
-
-const NAV_LINKS = ['ABOUT US', 'WORK', 'SERVICES', 'CONTACT US'];
-
-/** The pill's entrance timing, hoisted so the intro gate below and the
- *  motion.nav transition can never drift apart. */
-const PILL_INTRO_DELAY = 1.2;
-const PILL_INTRO_DURATION = 0.8;
+import {
+  MagneticLink,
+  PILL_INTRO_DELAY,
+  PILL_INTRO_DURATION,
+} from '@/src/components/layout/nav-links';
 
 /** The fullscreen menu renders these in sentence case, matching the reference.
  *  The pill nav keeps NAV_LINKS' caps, so the two are listed separately rather
@@ -35,83 +30,6 @@ function MenuToggleIcon({ isOpen }: { isOpen: boolean }) {
         <span className="menu-toggle-bar" data-position="bottom" />
       </span>
     </span>
-  );
-}
-
-function MagneticLink({ children, className, href, postNav }: { children: string | React.ReactNode; className?: string; href?: string, postNav?: () => void }) {
-  const { isHovered, hoverProps } = useHoverState<HTMLAnchorElement>();
-
-  /* Mirrored into a ref for the same reason as in fullscreen-menu.tsx:
-     useLenis() returns undefined on the first render and the instance on the
-     second, and handleClick must read whatever is current at click time rather
-     than closing over the undefined pass. */
-  const lenis = useLenis();
-  const lenisRef = useRef(lenis);
-  lenisRef.current = lenis;
-
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!href || !href.startsWith('#')) return;
-    const target = document.querySelector(href);
-    if (!target) return;
-    e.preventDefault();
-
-    /* `postNav` is passed ONLY by the fullscreen menu's links, so it doubles as
-       "this click came from inside the open overlay" — and that distinction
-       decides how we scroll.
-
-       While the menu is open it holds Lenis stopped, which puts
-       `overflow: hidden` on <html> (`.lenis.lenis-stopped` in globals.css).
-       A native scrollIntoView cannot move a document whose root is
-       overflow:hidden, so it silently does nothing. Lenis' own scrollTo can —
-       but it early-returns while stopped unless `force: true` is passed.
-
-       So: menu links scroll through Lenis with force, pill-nav links keep the
-       plain native path, where Lenis is running and nothing is clipped. */
-    if (!postNav) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-
-    /* onComplete fires when the scroll has actually landed, which is exactly
-       the cue the old IntersectionObserver was approximating — and it fires
-       reliably for short sections and for #contact-us at the page bottom, both
-       of which could never reach the observer's 0.9 threshold and would strand
-       the menu open. The timeout is a backstop for the case where Lenis is
-       somehow unavailable; `done` keeps postNav to a single call. */
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      clearTimeout(fallback);
-      postNav();
-    };
-    const fallback = setTimeout(finish, 1200);
-
-    const lenis = lenisRef.current;
-    if (lenis) lenis.scrollTo(target as HTMLElement, { force: true, onComplete: finish });
-    else target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  return (
-    <a
-      href={href || '#'}
-      className={`nav-magnetic ${className || ''}`}
-      onClick={handleClick}
-      {...hoverProps}
-    >
-      {/* TextRoll stays MOUNTED and is driven by isHovered — it is deliberately
-          not conditionally rendered and carries no remount key. Its coloured
-          exit layer rests in the visible state, so unmounting it mid-roll strands
-          letters showing red after the pointer has left; a fast swipe across the
-          nav did exactly that. See the isHovered note in text-roll.tsx. */}
-      {postNav ? (
-        typeof children === 'string' ? <span>{children}</span> : children
-      ) : typeof children === 'string' ? (
-        <TextRoll isHovered={isHovered}>{children}</TextRoll>
-      ) : (
-        children
-      )}
-    </a>
   );
 }
 
@@ -205,7 +123,12 @@ export default function Navbar({ loading }: NavbarProps) {
            unnoticed while the pill had an opaque background painting over the
            overlay; once the chrome above is removed, the overlay covers the
            close button entirely. */
-        className={`fixed md:absolute ${isMenuOpen ? 'z-[110]' : 'z-[100]'} flex flex-col top-[30px] md:top-[50px] left-1/2 -translate-x-1/2 w-[calc(100%-40px)] md:w-[calc(100%-122px)] max-w-[1318px]
+        /* md:pointer-events-none — see the note on the row below. It must sit on
+           the <nav> itself, not only on that row: this element is the one that
+           actually overlaps the hero's blended labels, and with `auto` here it
+           swallowed their clicks and their hover before the row was ever
+           consulted. Children re-enable it individually. */
+        className={`fixed md:absolute md:pointer-events-none ${isMenuOpen ? 'z-[110]' : 'z-[100]'} flex flex-col top-[30px] md:top-[50px] 2xl:top-[clamp(50px,3.255vw,83px)] left-1/2 -translate-x-1/2 w-[calc(100%-40px)] md:w-[calc(100%-122px)] max-w-page-max
           bg-off-white/70 backdrop-blur-md px-6 py-4 rounded-[24px] shadow-[0_8px_32px_rgba(26,26,26,0.1)] border border-off-black/5 md:bg-transparent md:px-0 md:py-0 md:rounded-none md:shadow-none md:border-transparent md:backdrop-blur-none ${
           isMenuOpen
             ? 'max-md:bg-transparent max-md:backdrop-blur-none max-md:border-transparent max-md:shadow-none'
@@ -215,36 +138,57 @@ export default function Navbar({ loading }: NavbarProps) {
         animate={!loading ? { y: 0, opacity: 1 } : {}}
         transition={{ duration: PILL_INTRO_DURATION, delay: PILL_INTRO_DELAY, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-center w-full justify-between transition-all duration-500">
-          {/* Hidden below md while the menu is open: this mark is dark and would
-              disappear against the overlay. The menu renders its own light mark
-              at the same size and gutter, so the slot stays filled. */}
-          <MagneticLink href="#hero" className={isMenuOpen ? 'max-md:opacity-0 max-md:pointer-events-none' : ''}>
-          <Image
-            src="/images/a2-logo.png"
-            alt="ATWO Studios Logo"
-            width={48}
-            height={32}
-            className="w-auto h-[32px] object-contain shrink-0"
-            referrerPolicy="no-referrer"
-            />
-          </MagneticLink>
+        {/* md:pointer-events-none is load-bearing, not tidying. This nav is
+            z-[100] and spans the full content width, so on desktop it lies
+            directly over the blended labels that hero.tsx renders underneath at
+            z-auto — and it was swallowing every click on them: the links looked
+            right and did nothing. On desktop this row holds only the logo, so it
+            lets pointers through and the logo takes them back below. Mobile keeps
+            its normal hit area, where the row owns the pill and its toggle. */}
+        <div className="flex items-center w-full justify-between transition-all duration-500 md:pointer-events-none">
+          {/* md:hidden — the DESKTOP logo now renders from NavLinks (nav-links.tsx)
+              as index 0 of the label row, so that it enters with the labels
+              instead of dropping in on this nav's rigid y:-100 tween. Left
+              mounted here it would simply draw twice on desktop.
 
-          <div className="hidden md:flex flex-grow items-center justify-start">
-            <div className="hidden md:block text-off-black text-[24px] tracking-wide ml-6 md:ml-12">
-              <MagneticLink href="#about-us">ABOUT US</MagneticLink>
-            </div>
-            <div className="hidden md:block text-off-black text-[24px] tracking-wide ml-8">
-              <MagneticLink href="#work">WORK</MagneticLink>
-            </div>
-            <div className="flex-grow" />
-            <div className="hidden md:block text-off-black text-[24px] tracking-wide">
-              <MagneticLink href="#services">SERVICES</MagneticLink>
-            </div>
+              It cannot be deleted outright: below md, NavLinks is `hidden` and
+              this pill is the only top bar, so this is still the only logo a
+              phone ever sees.
+
+              Hidden below md while the menu is open, as before: this mark is dark
+              and would disappear against the overlay. The menu renders its own
+              light mark at the same size and gutter, so the slot stays filled.
+
+              The `md:hidden` sits on this WRAPPER, not on the MagneticLink. On
+              the link it silently loses: MagneticLink always applies the
+              `.nav-magnetic` class, whose `display: inline-block` in globals.css
+              has the same specificity as Tailwind's `md:hidden` and is not in a
+              layer that yields to it — so the logo kept painting on desktop and
+              drew twice. Verified: two visible marks at x=61 and x=62. */}
+          <div className={`md:hidden ${isMenuOpen ? 'max-md:opacity-0 max-md:pointer-events-none' : ''}`}>
+            <MagneticLink href="#hero">
+              <Image
+                src="/images/a2-logo.png"
+                alt="ATWO Studios Logo"
+                width={48}
+                height={32}
+                className="w-auto h-[32px] 2xl:h-[clamp(32px,2.083vw,53px)] object-contain shrink-0"
+                referrerPolicy="no-referrer"
+              />
+            </MagneticLink>
           </div>
 
-          <div className="hidden md:flex items-center shrink-0 text-off-black text-[24px] tracking-wide ml-8">
-            <MagneticLink href="#contact-us">CONTACT US</MagneticLink>
+          {/* The four desktop labels are NOT here — they render from hero.tsx via
+              NavLinks, as a sibling of the hero photograph. That is what lets
+              their mix-blend-difference see the photo: this nav is `z-[100]`, an
+              isolated group with a transparent desktop background, so a blend
+              placed inside it composites against nothing and comes out flat
+              white. See the long note in nav-links.tsx before moving them back.
+
+              This spacer keeps the row's flex geometry, so the logo and the
+              mobile toggle sit exactly where they always did. */}
+          <div className="hidden md:flex flex-grow items-center justify-start">
+            <div className="flex-grow" />
           </div>
 
           <div className="md:hidden flex items-center shrink-0">

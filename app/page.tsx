@@ -24,8 +24,20 @@ export default function Home() {
   const mouseY = useMotionValue(0);
 
   /* Gates the hero's and navbar's intro animations, which already accept a
-     `loading` prop. Preloader fires this ~0.8s before it unmounts, so the two
-     clocks overlap: the hero letters are mid-reveal as the red slab clears.
+     `loading` prop.
+
+     The Preloader fires this at the SAME INSTANT it unmounts -- both happen in
+     its timeline's onComplete, on one frame, the moment its bar has grown to
+     cover the viewport. There is no overlap between the two clocks. (An earlier
+     comment here claimed a ~0.8s lead; that described the curtain design that
+     was removed, and it was wrong for a long time.)
+
+     The hand-off is seamless anyway because the bar's fill and the hero section
+     are the same #F5F5F0 -- the overlay is removed onto a surface identical to
+     the one it was painting, so nothing flashes. What that DOES mean is that
+     the hero cannot start until this fires, so any delay on the hero's own
+     first beat is dead blank screen rather than a pause. Its photograph now
+     starts at delay 0 for exactly that reason.
 
      handleDone MUST stay referentially stable. The previous preloader was
      removed because an inline arrow here was recreated on every render and, via

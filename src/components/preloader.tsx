@@ -37,15 +37,26 @@ const T_EXPAND = 4.55;
 const T_EXPAND_DUR = 1.2;
 /** Full off-white cover: the bar now IS the viewport. */
 const T_COVER_END = T_EXPAND + T_EXPAND_DUR;
-/** A breath on clean off-white, and then the preloader simply stands down.
+/** The preloader stands down the INSTANT the cover completes. No hold.
  *
  *  There is deliberately no parting beat. The expansion is not a cover to be
  *  removed afterwards -- it IS the page arriving, in the page's own #F5F5F0. An
  *  earlier version did expand and then part to uncover the hero, and the frame
  *  captured mid-part was a completely blank off-white screen: a light cover
  *  lifting off a light page has no contrast, so nothing read as a reveal at all.
- *  Here the hero's own entrance animation is the reveal. */
-const T_END = 6.05;
+ *  Here the hero's own entrance animation is the reveal.
+ *
+ *  This used to sit at 6.05 -- a 0.3s "breath on clean off-white" after the
+ *  cover landed at 5.75. Do not reinstate it. Because the hero cannot begin
+ *  until this timeline completes (onDone and the unmount fire on the SAME
+ *  frame, in onComplete below), that breath was not a pause between two
+ *  gestures: it was 0.3s of a completely empty off-white screen, on top of the
+ *  hero's own 0.2s photo delay behind it. Reported as "the white screen is
+ *  taking too long", and it was the larger half of that half-second.
+ *
+ *  Equal to T_COVER_END by definition rather than by a re-typed literal, so
+ *  retiming the expand cannot silently reopen the gap. */
+const T_END = T_COVER_END;
 
 /** Bar geometry — one 270x24 bar. Fixed values because the cover maths divides
  *  by them; the rendered box is measured at runtime anyway, so a narrow viewport
@@ -409,10 +420,23 @@ export default function Preloader({ onDone }: PreloaderProps) {
            The cost is a larger composited quad during the expand. status.md
            notes the factor was trimmed 1.6 -> 1.15 for exactly that reason and
            measured 7.3% -> 6.1% dropped frames; 1.2 sits just above that trim,
-           so the win is essentially retained while the correctness hole closes. */
+           so the win is essentially retained while the correctness hole closes.
+
+           The endpoint is sized to the VIEWPORT's shape, not to a square. An
+           earlier version put `vmax` on both axes, which ends on a square that
+           the fixed inset-0 field then clips down to the screen. That was
+           harmless at rest but it is what forced the growth path through a
+           square (see the expand tween below), and it over-scans the short axis
+           far more than coverage requires. */
         const vmax = Math.max(window.innerWidth, window.innerHeight);
-        const coverX = (vmax / w) * 1.2;
-        const coverY = (vmax / h) * 1.2;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        /* Grow the viewport rectangle until its SHORT axis clears `vmax`, so a
+           mid-intro rotation still cannot present an extent the cover misses,
+           then apply the 1.2 margin on top. */
+        const coverK = 1.2 * Math.max(vmax / vw, vmax / vh);
+        const endW = vw * coverK;
+        const endH = vh * coverK;
         /* finish() and the unmount happen on the SAME frame. The cover is
            #F5F5F0 and so is the page beneath it, so removing the overlay is
            invisible -- and the hero's entrance then plays onto exactly the
@@ -464,25 +488,58 @@ export default function Preloader({ onDone }: PreloaderProps) {
 
         /* ── The expand. One bar, growing from its own centre until it is the
            viewport. The fill is #F5F5F0, the site's own background, so this is
-           not a panel covering the page so much as the bar growing into it. */
+           not a panel covering the page so much as the bar growing into it.
+
+           One driver, both axes derived from it — NOT a tween of scaleX and
+           scaleY as two independent properties. That simpler form is what used
+           to be here, and it is wrong for a reason that is not obvious: the two
+           scales advance in lockstep as MULTIPLIERS, but they start from very
+           different bases (270 wide against 24 tall), so the RENDERED box does
+           not hold its shape. On a 1920x1080 screen it passed through roughly
+           775x600 at a quarter and 1280x1176 at halfway — i.e. the bar visibly
+           puffed into a square and only became screen-shaped at the very end.
+           No choice of ease fixes it; a shared ease is exactly the problem,
+           because the two axes need different shapes of progress.
+
+           Here BOTH rendered extents are interpolated from the bar's own box to
+           the cover, so the aspect approaches the viewport's monotonically from
+           the bar's side of it and never crosses to the other. On 1920x1080 it
+           runs 11.25 -> 2.79 -> 2.06 -> 1.78: always wider than the screen,
+           settling onto screen shape. There is no frame at which it is square.
+
+           Deriving the height from `aspect` alone was tried first and is worse,
+           not better: at p = 0 it wants 270/1.78 = 152px against a bar that is
+           24px tall, so the expand opens by snapping the bar six times taller in
+           a single frame (25x on mobile portrait). Interpolating both extents is
+           what makes p = 0 evaluate to scaleX = scaleY = 1 — the untouched bar —
+           so there is no seam between the fill beat and this one. */
+        const grow = { p: 0 };
+        const setScaleX = gsap.quickSetter(scaleRef.current!, "scaleX");
+        const setScaleY = gsap.quickSetter(scaleRef.current!, "scaleY");
         tl.to(
-          scaleRef.current,
+          grow,
           {
-            scaleX: coverX,
-            scaleY: coverY,
+            p: 1,
             duration: T_EXPAND_DUR,
             ease: "power2.inOut",
+            onUpdate: () => {
+              const rw = w + (endW - w) * grow.p;
+              const rh = h + (endH - h) * grow.p;
+              setScaleX(rw / w);
+              setScaleY(rh / h);
+            },
           },
           T_EXPAND
         );
 
-        /* Hold on the clean off-white, then stop. Nothing parts and nothing is
-           uncovered, so the field's own background never needs clearing -- the
-           bar is opaque and stays that way until the whole overlay goes.
+        /* Nothing follows the expand. Nothing parts and nothing is uncovered, so
+           the field's own background never needs clearing -- the bar is opaque
+           and stays that way until the whole overlay goes.
 
-           An empty tween purely to give the timeline its full length, so
-           onComplete lands on T_END rather than the moment the expand finishes. */
-        tl.to({}, { duration: T_END - T_COVER_END }, T_COVER_END);
+           There used to be an empty tween here padding the timeline out to
+           T_END, back when T_END sat 0.3s past the cover. T_END is now
+           T_COVER_END exactly, so onComplete already lands on the frame the
+           expand finishes and that tween would be a zero-duration no-op. */
 
         writeProgress();
 
