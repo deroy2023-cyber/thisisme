@@ -129,9 +129,18 @@ export default function Navbar({ loading }: NavbarProps) {
            swallowed their clicks and their hover before the row was ever
            consulted. Children re-enable it individually. */
         className={`fixed md:absolute md:pointer-events-none ${isMenuOpen ? 'z-[110]' : 'z-[100]'} flex flex-col top-[30px] md:top-[50px] 2xl:top-[clamp(50px,3.255vw,83px)] left-1/2 -translate-x-1/2 w-[calc(100%-40px)] md:w-[calc(100%-122px)] max-w-page-max
-          bg-off-white/70 backdrop-blur-md px-6 py-4 rounded-[24px] shadow-[0_8px_32px_rgba(26,26,26,0.1)] border border-off-black/5 md:bg-transparent md:px-0 md:py-0 md:rounded-none md:shadow-none md:border-transparent md:backdrop-blur-none ${
+          bg-off-white/70 backdrop-blur-md px-6 py-4 rounded-[24px] shadow-[0_8px_32px_rgba(26,26,26,0.1)] border border-off-black/5 md:bg-transparent md:px-0 md:py-0 md:rounded-none md:shadow-none md:border-transparent md:backdrop-blur-none
+          max-md:transition-[padding,width] max-md:duration-500 max-md:ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isMenuOpen
-            ? 'max-md:bg-transparent max-md:backdrop-blur-none max-md:border-transparent max-md:shadow-none'
+            /* Open on a phone, the pill's px-6 + 20px inset parked the close
+               circle's right edge 44px in, while the menu's own logo sits on
+               --spacing-menu-gutter (20px) — visibly off-axis. Dropping the
+               padding and sizing the row to the gutter puts the circle's edge
+               exactly on the gutter, mirroring the logo. py-4 is untouched, so
+               the circle's vertical centre stays at the 70px the menu's logo
+               row is aligned to (see fullscreen-menu.tsx). The border goes to
+               0 too: transparent, but it still took 1px off each side. */
+            ? 'max-md:bg-transparent max-md:backdrop-blur-none max-md:border-transparent max-md:shadow-none max-md:px-0 max-md:border-x-0 max-md:w-[calc(100%-2*var(--spacing-menu-gutter))]'
             : ''
         }`}
         initial={{ y: -100, opacity: 0 }}
@@ -170,6 +179,7 @@ export default function Navbar({ loading }: NavbarProps) {
               <Image
                 src="/images/a2-logo.png"
                 alt="ATWO Studios Logo"
+                title="ATWO Studios Logo"
                 width={48}
                 height={32}
                 className="w-auto h-[32px] 2xl:h-[clamp(32px,2.083vw,53px)] object-contain shrink-0"

@@ -195,7 +195,8 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
               />
               <img
                 src="https://res.cloudinary.com/ddooeqf5m/image/upload/v1772986604/final_hero_fiaghh.png"
-                alt="Hero background"
+                alt="ATWO Studios campaign visual"
+                title="ATWO Studios campaign visual"
                 fetchPriority="high"
                 decoding="async"
                 referrerPolicy="no-referrer"

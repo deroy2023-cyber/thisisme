@@ -356,6 +356,7 @@ export default function NavLinks({ visible }: { visible: boolean }) {
               <Image
                 src="/images/a2-logo.png"
                 alt="ATWO Studios Logo"
+                title="ATWO Studios Logo"
                 width={48}
                 height={32}
                 className="w-auto h-[32px] 2xl:h-[clamp(32px,2.083vw,53px)] object-contain"

@@ -378,6 +378,12 @@ function geometry(viewportW: number, viewportH: number) {
  *  front-card driver (which this branch never reaches — see DECK_MIN_W). */
 function MobileVideoCard({ slide }: { slide: Slide }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [muted, setMuted] = useState(true);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (el) el.muted = muted;
+  }, [muted]);
 
   useEffect(() => {
     const el = videoRef.current;
@@ -399,16 +405,32 @@ function MobileVideoCard({ slide }: { slide: Slide }) {
   }, []);
 
   return (
-    <video
-      ref={videoRef}
-      src={slide.video}
-      poster={slide.poster}
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      className="h-full w-full object-cover"
-    />
+    <>
+      <video
+        ref={videoRef}
+        src={slide.video}
+        poster={slide.poster}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        className="h-full w-full object-cover"
+      />
+      {/* Inside the Instagram <a>, so preventDefault/stopPropagation are
+          required or the tap navigates away. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setMuted((m) => !m);
+        }}
+        aria-label={muted ? "Unmute video" : "Mute video"}
+        className="absolute right-3 top-3 z-20 rounded-full bg-black/40 p-2 text-white backdrop-blur-sm hover:bg-black/60"
+      >
+        {muted ? <VolumeXIcon size={16} /> : <Volume2Icon size={16} />}
+      </button>
+    </>
   );
 }
 
@@ -1312,10 +1334,12 @@ export default function VideoStack() {
                   aria-label={`${slide.name} on Instagram`}
                   className="relative block aspect-video w-full overflow-hidden rounded-none shadow-2xl"
                 >
+                  <span className="sr-only">{slide.name} on Instagram</span>
                   {reduced ? (
                     <Image
                       src={slide.poster}
                       alt={slide.name}
+                      title={slide.name}
                       fill
                       sizes="(max-width: 768px) 100vw, 60vw"
                       className="object-cover"
@@ -1370,6 +1394,7 @@ export default function VideoStack() {
           <Image
             src="/images/project-bg.webp"
             alt="Projects atmosphere"
+            title="Projects atmosphere"
             fill
             sizes="100vw"
             className="object-cover"
@@ -1447,6 +1472,7 @@ export default function VideoStack() {
                 aria-hidden={i !== frontSlide}
                 className="block h-full w-full"
               >
+                <span className="sr-only">{slide.name} on Instagram</span>
                 <video
                   ref={(el) => {
                     videoRefs.current[i] = el;
@@ -1476,7 +1502,7 @@ export default function VideoStack() {
                 aria-hidden={i !== frontSlide}
                 className={`absolute right-3 top-3 z-20 rounded-full bg-black/40 p-2 text-white backdrop-blur-sm transition-opacity duration-200 hover:bg-black/60 focus-visible:opacity-100 ${
                   i === frontSlide
-                    ? "opacity-0 group-hover:opacity-100"
+                    ? "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                     : "pointer-events-none opacity-0"
                 }`}
               >

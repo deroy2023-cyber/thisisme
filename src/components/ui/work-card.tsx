@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from 'react';
 import Image from 'next/image';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import GlassmorphicPill from '@/src/components/ui/glassmorphic-pill';
@@ -67,6 +68,7 @@ export default function WorkCard({ title, image, tags, link }: Project) {
           <Image
             src={image}
             alt={title}
+            title={title}
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover transition-transform duration-700 hover-hover:group-hover:scale-105"
@@ -87,13 +89,19 @@ export default function WorkCard({ title, image, tags, link }: Project) {
             >
               {title}
             </span>
+            {/* Whitespace between flex items is not rendered, but it keeps the
+                crawled anchor text from running words together. */}
+            {' '}
             <span className="font-coolvetica text-white text-base 2xl:text-[clamp(16px,1.042vw,24px)]">✦</span>
           </div>
-
+          {' '}
           {/* Bottom tags */}
           <div className="flex gap-2 flex-wrap">
-            {tags.map((tag) => (
-              <GlassmorphicPill key={tag} label={tag} />
+            {tags.map((tag, i) => (
+              <Fragment key={tag}>
+                {i > 0 && ' '}
+                <GlassmorphicPill label={tag} />
+              </Fragment>
             ))}
           </div>
         </div>

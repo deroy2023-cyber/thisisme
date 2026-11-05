@@ -26,6 +26,14 @@ const nextConfig = {
     ],
   },
   allowedDevOrigins: ["192.168.0.17"],
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "index, follow" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -25,9 +25,81 @@ const manrope = Manrope({
   display: 'swap',
 })
 
+const SITE_URL = 'https://atwostudios.com'
+const SITE_NAME = 'ATWO Studios'
+const TITLE = 'ATWO Studios — Ad, Film & Brand Visual Production'
+const DESCRIPTION =
+  'Ideas run the show. We create ads, films, and brand visuals that look like full productions — minus the rented studios, camera crews and production chaos.'
+/* Share card: public/og-image.jpg, the hero still at 1200x630. Relative URL is
+   resolved against metadataBase. */
+const OG_IMAGE = {
+  url: '/og-image.jpg',
+  width: 1200,
+  height: 630,
+  alt: 'ATWO Studios campaign visual',
+}
+const INSTAGRAM_URL = 'https://www.instagram.com/atwo.io'
+const LINKEDIN_URL = 'https://www.linkedin.com/company/atwo-studios/'
+
 export const metadata: Metadata = {
-  title: 'ATWO STUDIOS',
-  description: 'Ideas run the show. We create ads, films, and brand visuals that look like full productions — minus the rented studios, camera crews and production chaos.',
+  metadataBase: new URL(SITE_URL),
+  title: { default: TITLE, template: `%s | ${SITE_NAME}` },
+  description: DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    'ATWO Studios',
+    'creative studio',
+    'ad production',
+    'AI ads',
+    'commercial films',
+    'brand visuals',
+    'creative direction',
+    'fashion campaigns',
+    'beauty campaigns',
+    'luxury brand content',
+  ],
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: 'Creative Agency',
+  alternates: { canonical: '/' },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: SITE_NAME,
+    locale: 'en_US',
+    title: TITLE,
+    description: DESCRIPTION,
+    images: [OG_IMAGE],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+    images: [OG_IMAGE.url],
+  },
+}
+
+const ORGANIZATION_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: SITE_NAME,
+  url: SITE_URL,
+  logo: `${SITE_URL}/images/a2-logo.png`,
+  email: 'contact@atwostudios.com',
+  description: DESCRIPTION,
+  sameAs: [INSTAGRAM_URL, LINKEDIN_URL],
 }
 
 /* Next injects a bare width=device-width/initial-scale=1 when no viewport is
@@ -41,6 +113,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   interactiveWidget: 'resizes-content',
+  themeColor: '#1A1A1A',
 }
 
 export default function RootLayout({
@@ -73,6 +146,10 @@ export default function RootLayout({
           type="font/woff2"
           href="https://framerusercontent.com/assets/gWeZipkGhmVsJNrR7HmYiR0GLY.woff2"
           crossOrigin="anonymous"
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
         />
       </head>
       <body>{children}</body>

@@ -67,22 +67,35 @@ const MENU_VIDEOS: { video: string; poster: string }[] = [
   },
 ];
 
-/** Left-hand info column. The reference shows a street address above the email
- *  block; this project has no address on record, so only the real contact
- *  addresses are listed.
- *  TODO: add the studio's postal address here if it should be public. */
-const INFO_COLUMN: { label: string; href?: string }[] = [
-  { label: "ATWO STUDIOS" },
-  { label: "contact@atwostudios.com", href: "mailto:contact@atwostudios.com" },
-];
+type InfoItem = { label: string; href?: string };
 
-/** Right-hand social column — real handles from the footer, so nothing is a
- *  dead link.
- *  TODO: add Behance / Twitter / a phone number if the studio wants them here. */
-const SOCIAL_COLUMN: { label: string; href?: string }[] = [
-  { label: "INSTAGRAM", href: "https://www.instagram.com/atwo.io" },
-  { label: "LINKEDIN", href: "https://www.linkedin.com/company/atwo-studios/" },
-];
+/** The menu's info row, at every size: the original two-column caps row, with
+ *  SHORT labels. The client chose this over an eyebrow/value redesign (built,
+ *  then rejected on both mobile and desktop). Its one flaw was the uppercase
+ *  address, which pushed INSTAGRAM/LINKEDIN off a phone's right edge, so the
+ *  address is replaced by a "GMAIL" link to Gmail's compose page, addressed to
+ *  the studio (client's call, knowing visitors without a Google account land
+ *  on a sign-in page). The aria-label keeps the real address audible.
+ *  TODO: add the postal address / Behance / phone here if they should be public. */
+const INFO_ROW: { left: (InfoItem & { ariaLabel?: string })[]; right: InfoItem[] } = {
+  left: [
+    { label: "ATWO STUDIOS" },
+    {
+      label: "GMAIL",
+      href: "https://mail.google.com/mail/?view=cm&fs=1&to=contact@atwostudios.com",
+      ariaLabel: "Email contact@atwostudios.com via Gmail",
+    },
+  ],
+  right: [
+    { label: "INSTAGRAM", href: "https://www.instagram.com/atwo.io" },
+    { label: "LINKEDIN", href: "https://www.linkedin.com/company/atwo-studios/" },
+  ],
+};
+
+/** Top edge of the nav links at `wide:` — just under the logo. (The info block
+ *  uses its own top, clearing the close button; see its comment.) */
+const WIDE_TOP =
+  "wide:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]";
 
 /** Short on purpose: it has to scale to ~340px and bleed toward the right edge,
  *  the way AVARO does in the reference. */
@@ -94,15 +107,26 @@ const MENU_WORDMARK = "ATWO";
  *  is mid-tween on.
  *
  *  No initial `opacity-0 translate-y-full` here — see the gsap.set() below. */
-function InfoLine({ label, href }: { label: string; href?: string }) {
+function InfoLine({ label, href, ariaLabel }: InfoItem & { ariaLabel?: string }) {
+  const external = !!href?.startsWith("http");
   return (
     <div className="overflow-hidden">
       {href ? (
+        /* The hover underline is an ::after pseudo-element, so its scale never
+           touches the transform GSAP tweens on this .menu-reveal node.
+           Tailwind's hover: is already gated on (hover: hover), so it does not
+           latch on after a tap. */
         <a
           href={href}
-          target={href.startsWith("http") ? "_blank" : undefined}
-          rel={href.startsWith("http") ? "noreferrer" : undefined}
-          className="menu-reveal inline-block transition-colors hover:text-accent-red"
+          target={external ? "_blank" : undefined}
+          rel={external ? "noopener noreferrer" : undefined}
+          aria-label={ariaLabel}
+          className="menu-reveal relative inline-block
+            transition-colors duration-300 hover:text-accent-red focus-visible:text-accent-red focus-visible:outline-none
+            after:absolute after:left-0 after:right-0 after:bottom-[0.18em] after:h-px after:bg-current
+            after:origin-left after:scale-x-0 after:transition-transform after:duration-500
+            after:ease-[cubic-bezier(0.22,1,0.36,1)]
+            hover:after:scale-x-100 focus-visible:after:scale-x-100"
         >
           {label}
         </a>
@@ -112,6 +136,7 @@ function InfoLine({ label, href }: { label: string; href?: string }) {
     </div>
   );
 }
+
 
 interface FullscreenMenuProps {
   isOpen: boolean;
@@ -123,7 +148,7 @@ interface FullscreenMenuProps {
 export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const headerRef = useRef<HTMLHeadingElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   /** Which MENU_VIDEOS entry is loaded. Always restarts at 0 when the menu
    *  (re)opens — the playlist does not remember position across closes. */
   const [videoIndex, setVideoIndex] = useState(0);
@@ -267,7 +292,7 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
               duration: 0.9,
               /* Position-based, NOT DOM order — do not flatten this to a plain
                  `stagger: 0.08`. At md+ the three blocks sit side by side in one
-                 horizontal band (links 21%, info 67%, socials 84%), while DOM
+                 horizontal band (links 21%, info grid over the wordmark), while DOM
                  order runs links → info → socials. A DOM-order stagger would
                  reveal bottom-left "Contact Us" before top-right "ATWO STUDIOS".
                  `axis: "x"` ranks by real on-screen x instead, so the reveal
@@ -397,6 +422,7 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
           <Image
             src="/images/menu-logo.webp"
             alt="ATWO Studios"
+            title="ATWO Studios"
             width={155}
             height={128}
             className="w-auto h-[32px] object-contain"
@@ -411,11 +437,10 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
           why-choose-us, services, section-header, footer) — same face as the
           "OUR WORK" heading in portfolio.tsx. */}
       <nav
-        className="flex flex-col wide:absolute wide:left-[21%]
-          wide:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]
+        className={`flex flex-col wide:absolute wide:left-[21%] ${WIDE_TOP}
           max-wide:mt-[clamp(16px,12dvh,96px)]
           text-[clamp(40px,11vw,56px)] leading-[1.08]
-          wide:text-[clamp(23px,3.4vw,44px)] wide:leading-[1.25] font-light"
+          wide:text-[clamp(23px,3.4vw,44px)] wide:leading-[1.25] font-light`}
         style={{ fontFamily: 'var(--font-dm-sans), sans-serif' }}
       >
         {children}
@@ -426,43 +451,57 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
           leave no band for it. `menu-reveal` on the inner element (with an
           overflow-hidden parent) makes it wipe in like every other block —
           see the gsap.set() note above for why the hidden state is not a class. */}
+      {/* Original mobile spacing, restored at the client's request.
+          (Do not re-tune without asking: a tighter rhythm was rejected.) */}
       <div className="wide:hidden overflow-hidden mt-[clamp(12px,6dvh,48px)] mb-[clamp(12px,4dvh,32px)]">
         <div className="menu-reveal h-px w-full bg-off-white/15" />
       </div>
 
-      {/* ── Info + socials — two columns in the right-hand third ───
-          `wide:contents` dissolves this flex row at desktop so each column can be
-          absolutely placed, while the shared type styles still cascade down.
-          Top-aligned to the same baseline as the nav links column (see the
-          `<nav>` above) so both sit at a matching top margin. */}
-      <div
-        className="flex wide:contents
-          max-wide:justify-between max-wide:gap-3
-          text-[clamp(15px,4.2vw,17px)] wide:text-[11px]
-          uppercase tracking-[0.096em] leading-[1.6]"
-        style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif' }}
-      >
-        <div
-          className="flex flex-col wide:absolute wide:left-[67%]
-            wide:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]"
-        >
-          {INFO_COLUMN.map((item) => (
-            <InfoLine key={item.label} {...item} />
-          ))}
-        </div>
-        {/* right-menu-gutter as well as left- so the longest handle wraps at
-            the gutter instead of running under the viewport edge. */}
-        <div
-          className="flex flex-col max-wide:text-right wide:absolute wide:left-[84%] wide:right-menu-gutter
-            wide:top-[calc(var(--spacing-menu-gutter)+32px+clamp(15px,1.9vw,18px))]"
-        >
-          {SOCIAL_COLUMN.map((item) => (
-            <InfoLine key={item.label} {...item} />
-          ))}
-        </div>
-      </div>
+      {/* ── Right column: info block over the wordmark ─────────────
+          At `wide:` ONE absolutely-placed column holds both, shrink-wrapped
+          (`w-max`) to its widest child — the nowrap wordmark. The info grid
+          then spans exactly the wordmark's width: `justify-between` puts the
+          left column's edge on the "A" and the right-aligned socials on the
+          "O", at every viewport, with no percentage to keep in sync. (A first
+          pass placed the grid on a `left-[58%]` band; the wordmark is
+          right-aligned inside that band, so the email hung ~190px left of the
+          "A" at 1920.)
+          Top = gutter + 48px close button + 12px, so the socials always
+          clears the button that sits directly above it.
 
-      {/* ── Wordmark — huge, bleeding toward the bottom-right ────── */}
+          Below `wide:` the column is `contents`, so the row and the wordmark
+          stay direct children of the menu's mobile flex stack. */}
+      <div
+        className="contents wide:absolute wide:right-menu-gutter wide:bottom-menu-gutter
+          wide:top-[calc(var(--spacing-menu-gutter)+60px)]
+          wide:flex wide:flex-col wide:justify-between wide:w-max"
+      >
+        {/* One caps row at every size (see INFO_ROW): left column on the
+            gutter / the "A", right column flush to the gutter / the "O".
+            Mobile keeps its original 15-17px; desktop is 13-18px — the old
+            fixed 11px is what read as fine print beside 44px links. */}
+        <div
+          className="flex justify-between gap-3 wide:gap-8 wide:w-full
+            text-[clamp(15px,4.2vw,17px)] wide:text-[clamp(13px,0.95vw,18px)]
+            uppercase tracking-[0.096em] leading-[1.6]"
+          style={{ fontFamily: 'var(--font-manrope), "Manrope", sans-serif' }}
+        >
+          <div className="flex flex-col">
+            {INFO_ROW.left.map((item) => (
+              <InfoLine key={item.label} {...item} />
+            ))}
+          </div>
+          {/* Right-aligned to the gutter on a phone; left-aligned on larger
+              screens (client request): the column box still ends on the "O",
+              and INSTAGRAM / LINKEDIN share one left edge inside it. */}
+          <div className="flex flex-col max-wide:items-end max-wide:text-right min-[1280px]:mr-[30%]">
+            {INFO_ROW.right.map((item) => (
+              <InfoLine key={item.label} {...item} />
+            ))}
+          </div>
+        </div>
+
+      {/* ── Wordmark — huge, flush to the bottom-right gutter ────── */}
       {/* SplitText wraps each char in an inline-block, which sits on the text
           baseline — so the font's descender space is reserved *inside* the box,
           below the glyphs. The box bottom meets the gutter while the visible
@@ -477,22 +516,29 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
           tween is untouched. em, not px, so it scales with the clamp()'d
           font-size below ~1308px instead of drifting.
 
-          whitespace-nowrap is load-bearing, not cosmetic. This box is only as
-          wide as the band between `left-[58%]` and the right gutter -- 765px at
-          1899px viewport -- while "ATWO" at 476px measures 565px in Coolvetica
-          Heavy Compressed but ~1392px in the fallback sans. So for as long as
-          the webfont is unavailable (still loading under font-display:swap,
-          blocked by an extension, cold cache, offline) the mark wraps to two
-          lines, and two 0.78 line boxes are 743px tall -- it escapes the top
-          and bottom of the viewport and buries the info/social columns.
-          Measured: the h1 goes from 371px tall at y=516 to 1114px at y=-227.
-          hero.tsx:162 already pairs this same face with whitespace-nowrap for
-          exactly this reason. Horizontal overflow that nowrap leaves behind is
-          clipped by the root's wide:overflow-hidden, and the mark is meant to
-          bleed off the right edge anyway. */}
-      <h1
+          As the last item of the right column's flex box (justify-between), the
+          negative margin-bottom still lets the box run 0.021em past the gutter,
+          so the glyphs land on it exactly as they did when this was absolute.
+
+          whitespace-nowrap is load-bearing, not cosmetic, and doubly so now:
+          the right column is `w-max`, sized BY this element. "ATWO" at 476px
+          measures 565px in Coolvetica Heavy Compressed but ~1392px in the
+          fallback sans, so while the webfont is unavailable (loading under
+          font-display:swap, blocked, offline) a wrapping mark would grow two
+          0.78 line boxes ~743px tall, escape the viewport and bury the info
+          block. Measured before: the h1 went from 371px tall at y=516 to
+          1114px at y=-227. hero.tsx:162 pairs this face with nowrap for the
+          same reason. Any horizontal overflow is clipped by the root's
+          wide:overflow-hidden.
+
+          Mobile sizing is the ORIGINAL, restored at the client's request
+          ("exactly like this"): min(73vw,34vh), centred in the leftover space
+          via flex-1 + content-center. A tighter bottom-anchored variant
+          (flex items-end, 30vh, overflow-clip) was built and rejected. */}
+      <div
         ref={headerRef}
-        className="max-wide:flex-1 max-wide:content-center wide:absolute wide:left-[58%] wide:right-menu-gutter wide:bottom-menu-gutter
+        aria-hidden
+        className="max-wide:flex-1 max-wide:content-center
           font-coolvetica-heavy select-none
           text-[min(73vw,34vh)] wide:text-[clamp(101px,36.4vw,476px)]
           leading-[0.78] tracking-normal whitespace-nowrap
@@ -501,7 +547,8 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
         style={{ perspective: 800 }}
       >
         {MENU_WORDMARK}
-      </h1>
+      </div>
+      </div>
 
       {/* ── Video — small, bottom-left, in a lighter-grey frame ──── */}
       <div
@@ -541,7 +588,7 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
             <button
               onClick={() => setMuted((m) => !m)}
               aria-label={muted ? "Unmute video" : "Mute video"}
-              className="absolute right-3 top-3 z-20 rounded-full bg-black/40 p-2 text-white backdrop-blur-sm opacity-0 transition-opacity duration-200 hover:bg-black/60 group-hover:opacity-100 focus-visible:opacity-100"
+              className="absolute right-3 top-3 z-20 rounded-full bg-black/40 p-2 text-white backdrop-blur-sm opacity-100 [@media(hover:hover)]:opacity-0 transition-opacity duration-200 hover:bg-black/60 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
             >
               {muted ? <VolumeXIcon size={16} /> : <Volume2Icon size={16} />}
             </button>
