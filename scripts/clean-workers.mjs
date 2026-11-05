@@ -14,14 +14,17 @@
  * are never touched. This runs as `predev`, before any server of ours exists.
  */
 import { execFileSync } from "node:child_process";
-import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
 
 if (process.platform !== "win32") {
   process.exit(0);
 }
 
 // Match on this project's own path so we never touch another project's server.
-const projectDir = resolve(process.cwd());
+// Canonical casing: a lowercase `d:` cwd would otherwise never match a
+// process started from `D:` (the match below ignores case too), and those
+// strays are exactly the leak this script exists to stop.
+const projectDir = realpathSync.native(process.cwd());
 const escapedDir = projectDir.split("'").join("''");
 
 const ps = [
@@ -30,7 +33,7 @@ const ps = [
   "$me = $PID",
   "$procs = Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object {",
   "  $_.CommandLine -and",
-  "  $_.CommandLine.Contains($dir) -and",
+  "  $_.CommandLine.IndexOf($dir, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and",
   "  ($_.CommandLine.Contains('postcss.js') -or $_.CommandLine.Contains('start-server.js')) -and",
   "  $_.ProcessId -ne $me",
   "}",

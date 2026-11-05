@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment, useState } from 'react';
 import Image from 'next/image';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import GlassmorphicPill from '@/src/components/ui/glassmorphic-pill';
@@ -22,6 +23,9 @@ export const gridVariants: Variants = {
 
 export default function WorkCard({ title, image, tags, link }: Project) {
   const reduced = useReducedMotion();
+  // One-shot fallback: if a resized Cloudinary variant ever fails, retry with
+  // the untransformed original rather than leave an empty card.
+  const [fallback, setFallback] = useState(false);
 
   // Reduced motion still gets a fade — it reads as intentional rather than
   // as a section that pops in — but no travel and no scale.
@@ -52,7 +56,7 @@ export default function WorkCard({ title, image, tags, link }: Project) {
   return (
     <motion.div
       variants={cardVariants}
-      className="relative w-full aspect-[4/3] md:aspect-[634/511] overflow-hidden group"
+      className="relative w-full aspect-[4/3] md:aspect-[634/511] overflow-hidden group bg-neutral-200"
     >
       <a
         href={link}
@@ -67,8 +71,11 @@ export default function WorkCard({ title, image, tags, link }: Project) {
           <Image
             src={image}
             alt={title}
+            title={title}
             fill
-            sizes="(max-width: 768px) 100vw, 50vw"
+            sizes="(max-width: 767px) 100vw, 50vw"
+            unoptimized={fallback}
+            onError={() => setFallback(true)}
             className="object-cover transition-transform duration-700 hover-hover:group-hover:scale-105"
           />
         </motion.div>
@@ -87,13 +94,19 @@ export default function WorkCard({ title, image, tags, link }: Project) {
             >
               {title}
             </span>
+            {/* Whitespace between flex items is not rendered, but it keeps the
+                crawled anchor text from running words together. */}
+            {' '}
             <span className="font-coolvetica text-white text-base 2xl:text-[clamp(16px,1.042vw,24px)]">✦</span>
           </div>
-
+          {' '}
           {/* Bottom tags */}
           <div className="flex gap-2 flex-wrap">
-            {tags.map((tag) => (
-              <GlassmorphicPill key={tag} label={tag} />
+            {tags.map((tag, i) => (
+              <Fragment key={tag}>
+                {i > 0 && ' '}
+                <GlassmorphicPill label={tag} />
+              </Fragment>
             ))}
           </div>
         </div>

@@ -1,10 +1,10 @@
 # Project Status
 
 ## Current Phase: Optimization complete — pending browser QA
-**Status:** Phases 0–4 done. Phase 5 (design tweaks) and Phase 6 (SEO/meta) still open.
+**Status:** Phases 0–4 done. Phase 5 (design tweaks) still open. Phase 6 (SEO/meta) done.
 Responsiveness audit + fixes done (see "Responsiveness pass" below).
 
-Last updated: 2026-08-28
+Last updated: 2026-11-05
 
 ---
 
@@ -19,12 +19,38 @@ Last updated: 2026-08-28
 | Phase 4 | Bundle, assets, config | ✅ Done |
 | Phase 5 | Minor Design Changes | 🚧 In Progress |
 | Phase 5.1 | Responsiveness audit & fixes | ✅ Done |
-| Phase 6 | Meta Tags & SEO | Not Started |
+| Phase 6 | Meta Tags & SEO | ✅ Done |
 | Phase 7 | Final browser verification | ⏳ Pending (see below) |
 
 ---
 
 ## What changed
+
+### Final image pass (2026-11-05): work images / logo intermittently not loading
+- **Cause:** every `next/image` went through Vercel's `/_next/image` optimizer. On a cache miss it
+  downloaded the Cloudinary original (Ornate was a 7.4 MB PNG) and re-encoded it (AVIF first, which
+  is slow). Every width × format × deploy is a new cold miss, and plan limits on transformations
+  make new variants fail while cached ones load, which is why it was "sometimes". The desktop logo also
+  mounted late, as a lazy image clipped by its reveal mask, so it wasn't requested until the reveal
+  ended.
+- **Fix:** `images.loaderFile` → `src/lib/image-loader.ts`. Cloudinary URLs get Cloudinary's own
+  `f_auto,q_auto,c_limit,w_N` transforms (an existing `so_0` poster offset is kept). Local `/images/*`
+  images are `unoptimized` (plain static files) with a 1-day + SWR `Cache-Control` from `next.config.mjs`.
+  Nothing hits `/_next/image` now.
+- Logo: `a2-logo.png` 35 KB → `a2-logo.webp` 12 KB, eager + `fetchPriority="high"`. React 19
+  auto-preloads it in `<head>` from the SSR'd mobile `<img>`, which also warms the desktop one (same URL).
+- Hero LCP: raw 1.5 MB PNG → Cloudinary srcset 768/1280/1510 (source is 1510 px wide), ~50 KB.
+- Work cards: `bg-neutral-200` placeholder plus a one-shot `onError` retry with the untransformed URL.
+- Cloudinary `preconnect` lost its `crossOrigin` (images/video are no-cors and never used that socket).
+- Verified: `next build` clean. Under `next start` + Playwright at 1440 and 375 widths: logo and all 4
+  work images complete, 0 `/_next/image` requests, 0 failed image requests.
+
+### Phase 6 — Meta tags & SEO (from the Detailed/Ahrefs audit)
+- `app/layout.tsx`: metadataBase https://atwostudios.com, a 50-char title with a template, canonical, robots + googleBot, keywords, publisher/author/creator, Open Graph + Twitter summary_large_image (Cloudinary hero cropped to 1200x630), themeColor, Organization JSON-LD (sameAs Instagram/LinkedIn).
+- New `app/robots.ts` and `app/sitemap.ts`. `next.config.mjs` sends `X-Robots-Tag: index, follow`.
+- Single H1: the fullscreen-menu wordmark is now an aria-hidden `<div>` (it looks the same).
+- Anchor text: sr-only "{name} on Instagram" inside both video-stack Instagram links (deck + MobileVideoCard). Whitespace separators in the footer GMAIL/email link and in the work-card title/✦/tags.
+- Images: `title` equals alt on every non-decorative image (client request). The vague alts "Hero background" and "Services visual" were rewritten.
 
 ### Phase 0 — Dev server was crashing the laptop
 Root cause was **not** the website code. 279 orphaned `node.exe` processes running
@@ -86,6 +112,13 @@ choice), `node_modules` (417 MB, normal), `.next` (regenerable).
 - WhyChooseUs background video: added poster, `preload="none"`, plays only in view.
 
 ### Phase 5 — Minor design changes (in progress)
+**Footer (2026-11-05).** BOOK A CALL no longer opens `BookCallModal`; it is an inert
+link driven by `BOOK_CALL_URL = "#"` in `footer.tsx`, pending a Google Calendar
+appointment-schedule link. The modal, `app/api/calendar/*` and `@googleapis/calendar`
+are unhooked but still in the repo (kept by choice). Spacing: links row → wordmark
+gap added (`mt-12 md:mt-16 lg:mt-20`, it was 0), CTA → links `mt-12` on mobile, and
+the bottom bar keeps `justify-between` so the three labels have equal gaps (client's choice over centring the ©).
+
 **Portfolio card entrance animation.** The OUR WORK grid was the only repeated card
 surface on the site with no reveal at all — cards sat at full opacity while every
 neighbouring section animated in, so the grid read as unfinished.
@@ -346,6 +379,72 @@ Caveat for future measurement: `smooth-scroll.tsx` sets `gsap.ticker.lagSmoothin
 so GSAP absorbs dropped frames and the timeline drifts behind wall-clock whenever
 something stalls rAF. Screenshot-per-beat harnesses report the later beats as late; poll
 with cheap `evaluate()` calls instead.
+
+**Fullscreen menu info block + mobile close button (2026-11-05).**
+- Info row (FINAL, all sizes, client's call): the ORIGINAL two-column caps row
+  (Manrope, uppercase, tracking 0.096em) with SHORT labels — `ATWO STUDIOS /
+  GMAIL` left, `INSTAGRAM / LINKEDIN` right-aligned. One element, data in
+  `INFO_ROW`. Size: mobile `clamp(15px,4.2vw,17px)` (original), desktop
+  `clamp(13px,0.95vw,18px)` — the old fixed 11px is what read as fine print
+  beside 44px links. Hover = accent-red + a hairline underline drawn in from
+  the left (`::after`, never touches GSAP's transform on `.menu-reveal`).
+  Alignment: on larger screens (`wide:`) the right column is LEFT-aligned inside
+  its box (client request), so INSTAGRAM / LINKEDIN share one left edge; the box
+  still ends on the "O". On phones it stays right-aligned to the gutter.
+  Superseded (built, then rejected by the client on mobile AND desktop): an
+  eyebrow/value redesign (grey caps labels over DM Sans values, ↗ icons).
+- Desktop placement: the info row and the wordmark share ONE absolute column
+  shrink-wrapped (`w-max`) to the nowrap wordmark, so the row spans exactly
+  its width — left column on the "A", right column on the "O"
+  (measured 0px off at 1920/1440/1024/768). Top is `gutter + 48px + 12px` to
+  clear the close button. ⚠️ A first pass put the grid on a `left-[58%]` band;
+  the wordmark is right-aligned inside that band, so the email hung ~190px left
+  of the "A" and the client rejected it. Do not go back to a percentage.
+  Side effect: the wordmark now sits flush on the right gutter at every width
+  instead of bleeding past it at ~768-1300px.
+- GMAIL links to Gmail's compose page for contact@atwostudios.com (client's
+  choice over a mailto "EMAIL" link, knowing non-Google users hit a sign-in
+  page); its aria-label keeps the address. The full address in caps is too
+  wide for a phone, which is why it is a short label. On mobile both edges sit
+  on the 20px gutter at 390/360/320.
+- Mobile sizing/spacing: the ORIGINAL values, restored at the client's
+  request ("exactly like this"): links `mt clamp(16px,12dvh,96px)`, hairline
+  `mt clamp(12px,6dvh,48px) / mb clamp(12px,4dvh,32px)`, wordmark
+  `min(73vw,34vh)` centred via `flex-1 content-center`. A tighter even-rhythm
+  variant (S = clamp(16px,3dvh,28px), bottom-anchored 30vh flex wordmark with
+  overflow-clip) was built and rejected — do not re-tune without asking.
+  Known, accepted: 360x640 scrolls ~25px with these values; 390x844 fits.
+  The mobile wordmark is `flex items-end` + `overflow-clip`: as a block, the
+  SplitText inline-blocks' strut made its box 1.1em instead of 0.78em, and the
+  face's content area (ascent .967 / descent .233) hung below the box as
+  phantom scroll. The ink sits inside the box (pixel-scanned), so the clip
+  hides nothing. Fits 390x844 and 360x640 with no scroll; 320x568 still
+  scrolls ~37px (the menu is overflow-y-auto for exactly that case).
+- Mobile close button sat 44px from the right edge (pill `px-6` + 20px inset)
+  while the menu logo sits at 20px. While open, below md the pill drops its x
+  padding/border and sizes to the gutter. Measured at 390/360/320: right gap
+  = logo left = 20px, centres within 1px.
+- Verified in Playwright at 1920/1440/1024/768/390/360/320: nothing past the
+  viewport edge, no console errors.
+
+**Dev server: "Next.js package not found" panics, and a laptop crash.**
+Two separate causes, both fixed:
+1. *Lowercase drive letter.* VS Code's terminal and cmd.exe can hand Next
+   `d:\...`. Next's JS side keeps it (Windows `fs.realpathSync` does not fix
+   drive case) while Turbopack's native side sees `D:\...` and compares
+   case-sensitively, so resolution walked to the parent folder:
+   `Can't resolve 'tailwindcss' in 'd:\1abc-Personal Projects'`, repeated
+   until `JavaScript heap out of memory`. **This took the whole laptop down.**
+   `npm run dev` now goes through `scripts/dev.mjs`, which spawns `next dev`
+   from `fs.realpathSync.native(cwd)` (canonical casing).
+   `clean-workers.mjs` also matches case-insensitively now; its old
+   case-sensitive `Contains()` would never reap a `D:` worker from a `d:` shell.
+2. *Stale `.next` cache.* With casing fixed, the HMR panic still reproduced
+   against the old `.next`; after `npm run dev:clean` it did not reproduce
+   across 10 page loads plus a live HMR edit. If it returns, `dev:clean` first.
+Verified under a watchdog that kills the tree at 2.5 GB (peak stayed <1 GB).
+⚠️ Do not start a dev server unguarded to "just reproduce" this: that run is
+what crashed the machine.
 
 ---
 

@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
-import BookCallModal from "@/src/components/ui/BookCallModal";
+
+// BOOK A CALL target. Placeholder until the Google Calendar appointment-schedule
+// link exists — paste it here. While this is "#" the link is inert (the click
+// handler below swallows it so it doesn't jump to the top of the page). Once a
+// real URL is set, also add target="_blank" rel="noopener noreferrer" to the <a>.
+const BOOK_CALL_URL = "#";
 
 // Same declaration the section headings use (about, portfolio, services,
 // why-choose-us, section-header). Manrope (800), self-hosted via
@@ -68,8 +73,6 @@ const KERN_WORD_EM = 2.96;
 const KERN_TOLERANCE = 0.02; // ±2%, comfortably inside the gap to any fallback
 
 export default function Footer() {
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
-
   /* KERN_EM encodes one specific face's pair kerns, so it may only be applied
      while that face is the one actually drawing the wordmark. A fallback (or
      the condensed face, which this site also serves) has different glyph widths
@@ -163,7 +166,7 @@ export default function Footer() {
             <main> has uncovered the red block, rather than while the pinned
             footer is still hidden behind it. */}
         <div ref={revealRef} aria-hidden className="absolute bottom-[40dvh] left-0 h-px w-full" />
-        <footer className="relative md:sticky md:top-0 w-full h-auto md:h-dvh flex flex-col justify-between bg-white overflow-hidden">
+        <footer className="relative md:sticky md:top-0 w-full h-auto md:min-h-dvh flex flex-col justify-between bg-white overflow-hidden">
           <div>
             {/* CTA Section */}
             <div className="px-5 md:px-10 lg:px-[138px] 2xl:px-[clamp(138px,8.984vw,245px)] pt-16 lg:pt-20">
@@ -185,32 +188,36 @@ export default function Footer() {
 
             {/* Links row */}
             <motion.div
-              className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 items-center px-5 md:px-10 lg:px-34.5 2xl:px-[clamp(138px,8.984vw,245px)] mt-16 lg:mt-20"
+              className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 items-center px-5 md:px-10 lg:px-34.5 2xl:px-[clamp(138px,8.984vw,245px)] mt-12 md:mt-16 lg:mt-20"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <button
-                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity whitespace-nowrap text-center md:text-left"
+              <a
+                href={BOOK_CALL_URL}
+                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity whitespace-nowrap justify-self-start text-left md:justify-self-auto"
                 style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
                 data-hover
-                onClick={() => setIsBookingOpen(true)}
+                onClick={(e) => {
+                  if (BOOK_CALL_URL === "#") e.preventDefault();
+                }}
               >
                 BOOK A CALL
-              </button>
+              </a>
               <a
                 href="mailto:contact@atwostudios.com"
-                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red underline hover:opacity-70 transition-opacity md:text-left"
+                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red md:underline hover:opacity-70 transition-opacity justify-self-end text-right md:justify-self-auto md:text-left"
                 style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
                 data-hover
               >
-                contact@atwostudios.com
+                <span className="md:hidden">GMAIL</span>
+                <span className="hidden md:inline">contact@atwostudios.com</span>
               </a>
               <a
                 href="https://www.linkedin.com/company/atwo-studios/"
                 target="_blank" rel="noopener noreferrer"
-                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity text-center"
+                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity justify-self-start text-left md:justify-self-auto md:text-center"
                 style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
                 data-hover
               >
@@ -219,7 +226,7 @@ export default function Footer() {
               <a
                 href="https://www.instagram.com/atwo.io?igsh=dWh6Z3I2am10b3U0&utm_source=qr"
                 target="_blank" rel="noopener noreferrer"
-                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity text-center md:text-right"
+                className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red hover:opacity-70 transition-opacity justify-self-end text-right md:justify-self-auto"
                 style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
                 data-hover
               >
@@ -247,15 +254,23 @@ export default function Footer() {
               overflow or under-fill at this value. The previous font switch
               re-measured KERN_EM but carried the size across unchanged at
               Coolvetica's 38cqw (calibrated against ITS 2.487em), which put
-              Manrope at 112.5% of the block and clipped the A and the O. */}
-          <div className="@container relative flex-1 flex items-center justify-center overflow-hidden bg-accent-red mx-5 md:mx-10 lg:mx-[138px] 2xl:mx-[clamp(138px,8.984vw,245px)]">
+              Manrope at 112.5% of the block and clipped the A and the O.
+
+              HEIGHT: flex-[1_0_auto], not flex-1. With overflow-hidden a flex-1
+              item's min-height resolves to 0, so on wide-but-short screens
+              (e.g. 1832x900) the block got only the leftover height, less than
+              the width-driven wordmark, and the letters were cropped top and
+              bottom. Basis auto = the h2's own height, so the block never drops
+              below the wordmark; the footer is md:min-h-dvh (not h-dvh) so it
+              can grow past the viewport instead. */}
+          <div className="@container relative flex-[1_0_auto] flex items-center justify-center overflow-hidden bg-accent-red mt-12 md:mt-16 lg:mt-20 mx-5 md:mx-10 lg:mx-[138px] 2xl:mx-[clamp(138px,8.984vw,245px)]">
             {/* .letter-mask / .letter-inner are the hero's own primitives
                 (globals.css:145-155). They hard-code line-height 0.85, which the
                 spans would apply to themselves and override the h2's leading —
                 so lineHeight is restated inline to keep the wordmark exactly the
                 size and position it was before. */}
             <h2
-              className="text-[32cqw] leading-[0.8] tracking-normal text-off-white whitespace-nowrap select-none"
+              className="text-[32cqw] leading-[0.8] py-[1.5cqw] tracking-normal text-off-white whitespace-nowrap select-none"
               style={{
                 fontFamily: REGULAR,
               }}
@@ -288,21 +303,24 @@ export default function Footer() {
           </div>
 
           {/* Bottom bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 px-5 md:px-10 lg:px-[138px] 2xl:px-[clamp(138px,8.984vw,245px)] py-8 lg:py-10">
+          {/* flex justify-between: equal gaps between the three labels (client's
+              call). The © is therefore not geometrically centred under ATWO —
+              TERMS & CONDITIONS is wider than PRIVACY. */}
+          <div className="flex flex-nowrap items-center justify-between gap-2 md:gap-4 px-5 md:px-10 lg:px-[138px] 2xl:px-[clamp(138px,8.984vw,245px)] pt-8 pb-[max(2rem,env(safe-area-inset-bottom))] lg:py-10">
             <span
-              className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
+              className="whitespace-nowrap text-[clamp(9px,2.9vw,14px)] md:text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
               style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
             >
               TERMS & CONDITIONS
             </span>
             <span
-              className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
+              className="whitespace-nowrap text-[clamp(9px,2.9vw,14px)] md:text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
               style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
             >
               ©2026 ATWO
             </span>
             <span
-              className="text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
+              className="whitespace-nowrap text-[clamp(9px,2.9vw,14px)] md:text-[clamp(14px,3.6vw,22px)] 2xl:text-[clamp(22px,1.43vw,32px)] text-primary-red"
               style={{ fontFamily: REGULAR, letterSpacing: TRACK }}
             >
               PRIVACY
@@ -310,12 +328,6 @@ export default function Footer() {
           </div>
         </footer>
       </div>
-
-      {/* Booking Modal */}
-      <BookCallModal
-        isOpen={isBookingOpen}
-        onClose={() => setIsBookingOpen(false)}
-      />
     </>
   );
 }

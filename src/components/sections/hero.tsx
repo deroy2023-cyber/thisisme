@@ -11,8 +11,11 @@ import FloatingParticles from '@/src/components/layout/floating-particles';
 import NavLinks, { PILL_INTRO_DELAY } from '@/src/components/layout/nav-links';
 import { useLenis } from 'lenis/react';
 import { scrollToSection } from '@/src/lib/scroll-to-section';
+import { cloudinaryUrl } from '@/src/lib/image-loader';
 
 const HERO_TEXT = "ATWO STUDIOS.";
+const HERO_SRC = "https://res.cloudinary.com/ddooeqf5m/image/upload/v1772986604/final_hero_fiaghh.png";
+const HERO_WIDTHS = [768, 1280, 1510];
 const LETTER_STAGGER = 0.04;
 const HERO_START = 0.5;
 /* Pulled in from 0.8. The preloader no longer holds on blank off-white, so every
@@ -171,8 +174,8 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
               media is evaluated by the preload scanner, so exactly one is
               fetched. That means opting out of the next/image optimizer here --
               the mobile asset is pre-compressed to webp at build-authoring time
-              (853x1844, q82) to compensate, and the Cloudinary desktop URL was
-              already being served unoptimized in practice.
+              (853x1844, q82) to compensate, and the desktop crop is resized by
+              Cloudinary's own transforms (cloudinaryUrl below).
 
               Animation props stay on the wrapping motion.div so both crops share
               one entrance rather than duplicating the literals. */}
@@ -193,9 +196,15 @@ export default function Hero({ loading, smoothProgress, mouseX, mouseY }: HeroPr
                 media="(max-width: 767px)"
                 srcSet="/images/mobile-hero.webp"
               />
+              {/* Was the raw 1.5 MB PNG. Cloudinary resizes and picks AVIF/WebP
+                  per browser (~50 KB). The source is 1510px wide, so the set
+                  stops there; c_limit never upscales. */}
               <img
-                src="https://res.cloudinary.com/ddooeqf5m/image/upload/v1772986604/final_hero_fiaghh.png"
-                alt="Hero background"
+                src={cloudinaryUrl(HERO_SRC, 1510)}
+                srcSet={HERO_WIDTHS.map((w) => `${cloudinaryUrl(HERO_SRC, w)} ${w}w`).join(', ')}
+                sizes="100vw"
+                alt="ATWO Studios campaign visual"
+                title="ATWO Studios campaign visual"
                 fetchPriority="high"
                 decoding="async"
                 referrerPolicy="no-referrer"

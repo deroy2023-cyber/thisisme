@@ -204,7 +204,9 @@ export default function Services() {
       >
         <Image
           src="/images/services-bg.webp"
-          alt="Services visual"
+          unoptimized
+          alt="ATWO Studios services"
+          title="ATWO Studios services"
           fill
           sizes="100vw"
           className="object-cover"
