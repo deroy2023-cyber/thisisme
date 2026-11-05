@@ -421,10 +421,12 @@ export default function FullscreenMenu({ isOpen, children }: FullscreenMenuProps
         <div className="wide:absolute wide:top-menu-gutter wide:left-menu-gutter">
           <Image
             src="/images/menu-logo.webp"
+            unoptimized
             alt="ATWO Studios"
             title="ATWO Studios"
             width={155}
             height={128}
+            loading="eager"
             className="w-auto h-[32px] object-contain"
             referrerPolicy="no-referrer"
           />

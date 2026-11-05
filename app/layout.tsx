@@ -127,7 +127,11 @@ export default function RootLayout({
         {/* Every video, the hero LCP image and all three Coolvetica faces come
             from these origins. Without the hints the connection handshake for
             the LCP image only starts after the CSS that references it parses. */}
-        <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
+        {/* Cloudinary WITHOUT crossOrigin: images and videos are no-cors
+            requests, which use a separate connection pool from CORS ones, so an
+            anonymous preconnect was a socket nothing ever reused. The fonts on
+            framerusercontent ARE CORS fetches and keep it. */}
+        <link rel="preconnect" href="https://res.cloudinary.com" />
         <link rel="preconnect" href="https://framerusercontent.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
         <link rel="dns-prefetch" href="https://framerusercontent.com" />

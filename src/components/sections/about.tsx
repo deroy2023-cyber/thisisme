@@ -49,6 +49,7 @@ export default function About() {
         >
           <Image
             src="/images/about-model.jpg"
+            unoptimized
             alt="ATWO Studios creative direction"
             title="ATWO Studios creative direction"
             fill

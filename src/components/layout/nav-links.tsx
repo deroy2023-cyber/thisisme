@@ -354,11 +354,21 @@ export default function NavLinks({ visible }: { visible: boolean }) {
           >
             <MagneticLink href="#hero">
               <Image
-                src="/images/a2-logo.png"
+                src="/images/a2-logo.webp"
+                unoptimized
                 alt="ATWO Studios Logo"
                 title="ATWO Studios Logo"
-                width={48}
+                width={40}
                 height={32}
+                /* Eager + high priority. This row mounts late (after the
+                   preloader) and the image starts clipped by the mask above at
+                   y:-130%; a lazy image fully clipped by an ancestor does not
+                   count as intersecting, so it was not even requested until the
+                   reveal finished. The file is already cached by the time this
+                   mounts: React preloads the identical mobile-logo URL from
+                   navbar.tsx in <head>. */
+                loading="eager"
+                fetchPriority="high"
                 className="w-auto h-[32px] 2xl:h-[clamp(32px,2.083vw,53px)] object-contain"
                 referrerPolicy="no-referrer"
               />

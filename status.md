@@ -26,6 +26,25 @@ Last updated: 2026-11-05
 
 ## What changed
 
+### Final image pass (2026-11-05): work images / logo intermittently not loading
+- **Cause:** every `next/image` went through Vercel's `/_next/image` optimizer. On a cache miss it
+  downloaded the Cloudinary original (Ornate was a 7.4 MB PNG) and re-encoded it (AVIF first, which
+  is slow). Every width × format × deploy is a new cold miss, and plan limits on transformations
+  make new variants fail while cached ones load, which is why it was "sometimes". The desktop logo also
+  mounted late, as a lazy image clipped by its reveal mask, so it wasn't requested until the reveal
+  ended.
+- **Fix:** `images.loaderFile` → `src/lib/image-loader.ts`. Cloudinary URLs get Cloudinary's own
+  `f_auto,q_auto,c_limit,w_N` transforms (an existing `so_0` poster offset is kept). Local `/images/*`
+  images are `unoptimized` (plain static files) with a 1-day + SWR `Cache-Control` from `next.config.mjs`.
+  Nothing hits `/_next/image` now.
+- Logo: `a2-logo.png` 35 KB → `a2-logo.webp` 12 KB, eager + `fetchPriority="high"`. React 19
+  auto-preloads it in `<head>` from the SSR'd mobile `<img>`, which also warms the desktop one (same URL).
+- Hero LCP: raw 1.5 MB PNG → Cloudinary srcset 768/1280/1510 (source is 1510 px wide), ~50 KB.
+- Work cards: `bg-neutral-200` placeholder plus a one-shot `onError` retry with the untransformed URL.
+- Cloudinary `preconnect` lost its `crossOrigin` (images/video are no-cors and never used that socket).
+- Verified: `next build` clean. Under `next start` + Playwright at 1440 and 375 widths: logo and all 4
+  work images complete, 0 `/_next/image` requests, 0 failed image requests.
+
 ### Phase 6 — Meta tags & SEO (from the Detailed/Ahrefs audit)
 - `app/layout.tsx`: metadataBase https://atwostudios.com, a 50-char title with a template, canonical, robots + googleBot, keywords, publisher/author/creator, Open Graph + Twitter summary_large_image (Cloudinary hero cropped to 1200x630), themeColor, Organization JSON-LD (sameAs Instagram/LinkedIn).
 - New `app/robots.ts` and `app/sitemap.ts`. `next.config.mjs` sends `X-Robots-Tag: index, follow`.

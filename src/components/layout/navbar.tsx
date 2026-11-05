@@ -177,11 +177,20 @@ export default function Navbar({ loading }: NavbarProps) {
           <div className={`md:hidden ${isMenuOpen ? 'max-md:opacity-0 max-md:pointer-events-none' : ''}`}>
             <MagneticLink href="#hero">
               <Image
-                src="/images/a2-logo.png"
+                src="/images/a2-logo.webp"
+                unoptimized
                 alt="ATWO Studios Logo"
                 title="ATWO Studios Logo"
-                width={48}
+                width={40}
                 height={32}
+                /* Eager + high priority: the only logo a phone sees, above the
+                   fold. This <img> is in the SSR HTML at every width (md:hidden
+                   only hides it), so React 19 emits a <link rel=preload> for it
+                   in <head> -- which is also what warms the cache for the
+                   desktop logo in nav-links.tsx (same URL). Keep the two srcs
+                   identical and `unoptimized`, or that preload stops matching. */
+                loading="eager"
+                fetchPriority="high"
                 className="w-auto h-[32px] 2xl:h-[clamp(32px,2.083vw,53px)] object-contain shrink-0"
                 referrerPolicy="no-referrer"
               />

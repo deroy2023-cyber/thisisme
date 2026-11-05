@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import Image from 'next/image';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import GlassmorphicPill from '@/src/components/ui/glassmorphic-pill';
@@ -23,6 +23,9 @@ export const gridVariants: Variants = {
 
 export default function WorkCard({ title, image, tags, link }: Project) {
   const reduced = useReducedMotion();
+  // One-shot fallback: if a resized Cloudinary variant ever fails, retry with
+  // the untransformed original rather than leave an empty card.
+  const [fallback, setFallback] = useState(false);
 
   // Reduced motion still gets a fade — it reads as intentional rather than
   // as a section that pops in — but no travel and no scale.
@@ -53,7 +56,7 @@ export default function WorkCard({ title, image, tags, link }: Project) {
   return (
     <motion.div
       variants={cardVariants}
-      className="relative w-full aspect-[4/3] md:aspect-[634/511] overflow-hidden group"
+      className="relative w-full aspect-[4/3] md:aspect-[634/511] overflow-hidden group bg-neutral-200"
     >
       <a
         href={link}
@@ -70,7 +73,9 @@ export default function WorkCard({ title, image, tags, link }: Project) {
             alt={title}
             title={title}
             fill
-            sizes="(max-width: 768px) 100vw, 50vw"
+            sizes="(max-width: 767px) 100vw, 50vw"
+            unoptimized={fallback}
+            onError={() => setFallback(true)}
             className="object-cover transition-transform duration-700 hover-hover:group-hover:scale-105"
           />
         </motion.div>

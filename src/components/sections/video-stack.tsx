@@ -1315,6 +1315,7 @@ export default function VideoStack() {
         <div className="pointer-events-none absolute inset-0">
           <Image
             src="/images/project-bg.webp"
+            unoptimized
             alt=""
             fill
             sizes="100vw"
@@ -1393,6 +1394,7 @@ export default function VideoStack() {
         <div className="sticky top-0 left-0 h-dvh w-full">
           <Image
             src="/images/project-bg.webp"
+            unoptimized
             alt="Projects atmosphere"
             title="Projects atmosphere"
             fill
